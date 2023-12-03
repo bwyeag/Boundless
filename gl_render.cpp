@@ -1,51 +1,50 @@
-/* 
-* BOUNDLESS Engine File
-* Create: 2023/12/2/18:15
-* OpenGL Render C++ File
-* 
-*/
+/*
+ * BOUNDLESS Engine File
+ * Create: 2023/12/2/18:15
+ * OpenGL Render C++ File
+ *
+ */
 
 #include "gl_render.hpp"
 
-
 namespace Boundless
 {
-//////////////////////////////////////////////////////////////////
-//  错误处理部分
-//  Error Handle
-//
-    const char* string_BUFFER = "缓存区对象";
-    const char* string_SHADER = "着色器对象";
-    const char* string_PROGRAM = "程序对象";
-    const char* string_VERTEX_ARRAY = "顶点数组对象";
-    const char* string_QUERY = "查询对象";
-    const char* string_PROGRAM_PIPELINE = "程序管道对象";
-    const char* string_TRANSFORM_FEEDBACK = "转换反馈对象";
-    const char* string_SAMPLER = "采样器对象";
-    const char* string_TEXTURE = "纹理对象";
-    const char* string_RENDERBUFFER = "渲染缓存区对象";
-    const char* string_FRAMEBUFFER = "帧缓存对象";
-    const char* string_null = "未知";
-    const char* string_DEBUG_SOURCE_API = "对 OpenGL API 的调用";
-    const char* string_DEBUG_SOURCE_WINDOW_SYSTEM = "对窗口系统 API 的调用";
-    const char* string_DEBUG_SOURCE_SHADER_COMPILER = "GLSL 编译器";
-    const char* string_DEBUG_SOURCE_THIRD_PARTY = "与 OpenGL 关联的应用程序";
-    const char* string_DEBUG_SOURCE_APPLICATION = "应用程序的用户";
-    const char* string_DEBUG_SOURCE_OTHER = "一些不是其中之一的来源";
-    const char* string_GL_DEBUG_TYPE_ERROR = "错误(来自 API)";
-    const char* string_GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR = "使用某些标记为已弃用的行为";
-    const char* string_GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR = "调用了未定义的行为";
-    const char* string_GL_DEBUG_TYPE_PORTABILITY = "用户依赖的某些功能不可移植";
-    const char* string_GL_DEBUG_TYPE_PERFORMANCE = "代码触发了可能的性能问题";
-    const char* string_GL_DEBUG_TYPE_MARKER = " 命令流注释";
-    const char* string_GL_DEBUG_TYPE_PUSH_GROUP = " 组推送";
-    const char* string_GL_DEBUG_TYPE_POP_GROUP = "组弹出";
-    const char* string_GL_DEBUG_TYPE_OTHER = "某种类型不属于这些类型之一";
-    const char* string_GL_DEBUG_SEVERITY_HIGH = "高等级警报";
-    const char* string_GL_DEBUG_SEVERITY_MEDIUM = "中等级错误";
-    const char* string_GL_DEBUG_SEVERITY_LOW = "低等级错误";
-    const char* string_GL_DEBUG_SEVERITY_NOTIFICATION = "消息";
-    const char* GetObjectType(GLenum o)
+    //////////////////////////////////////////////////////////////////
+    //  错误处理部分
+    //  Error Handle
+    //
+    const char *string_BUFFER = "缓存区对象";
+    const char *string_SHADER = "着色器对象";
+    const char *string_PROGRAM = "程序对象";
+    const char *string_VERTEX_ARRAY = "顶点数组对象";
+    const char *string_QUERY = "查询对象";
+    const char *string_PROGRAM_PIPELINE = "程序管道对象";
+    const char *string_TRANSFORM_FEEDBACK = "转换反馈对象";
+    const char *string_SAMPLER = "采样器对象";
+    const char *string_TEXTURE = "纹理对象";
+    const char *string_RENDERBUFFER = "渲染缓存区对象";
+    const char *string_FRAMEBUFFER = "帧缓存对象";
+    const char *string_null = "未知";
+    const char *string_DEBUG_SOURCE_API = "对 OpenGL API 的调用";
+    const char *string_DEBUG_SOURCE_WINDOW_SYSTEM = "对窗口系统 API 的调用";
+    const char *string_DEBUG_SOURCE_SHADER_COMPILER = "GLSL 编译器";
+    const char *string_DEBUG_SOURCE_THIRD_PARTY = "与 OpenGL 关联的应用程序";
+    const char *string_DEBUG_SOURCE_APPLICATION = "应用程序的用户";
+    const char *string_DEBUG_SOURCE_OTHER = "一些不是其中之一的来源";
+    const char *string_GL_DEBUG_TYPE_ERROR = "错误(来自 API)";
+    const char *string_GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR = "使用某些标记为已弃用的行为";
+    const char *string_GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR = "调用了未定义的行为";
+    const char *string_GL_DEBUG_TYPE_PORTABILITY = "用户依赖的某些功能不可移植";
+    const char *string_GL_DEBUG_TYPE_PERFORMANCE = "代码触发了可能的性能问题";
+    const char *string_GL_DEBUG_TYPE_MARKER = " 命令流注释";
+    const char *string_GL_DEBUG_TYPE_PUSH_GROUP = " 组推送";
+    const char *string_GL_DEBUG_TYPE_POP_GROUP = "组弹出";
+    const char *string_GL_DEBUG_TYPE_OTHER = "某种类型不属于这些类型之一";
+    const char *string_GL_DEBUG_SEVERITY_HIGH = "高等级警报";
+    const char *string_GL_DEBUG_SEVERITY_MEDIUM = "中等级错误";
+    const char *string_GL_DEBUG_SEVERITY_LOW = "低等级错误";
+    const char *string_GL_DEBUG_SEVERITY_NOTIFICATION = "消息";
+    const char *GetObjectType(GLenum o)
     {
         switch (o)
         {
@@ -75,7 +74,7 @@ namespace Boundless
             return string_null;
         }
     }
-    const char* GetSourceFrom(GLenum s)
+    const char *GetSourceFrom(GLenum s)
     {
         switch (s)
         {
@@ -95,7 +94,7 @@ namespace Boundless
             return string_null;
         }
     }
-    const char* GetSourceType(GLenum s)
+    const char *GetSourceType(GLenum s)
     {
         switch (s)
         {
@@ -121,7 +120,7 @@ namespace Boundless
             return string_null;
         }
     }
-    const char* GetSeverity(GLenum s)
+    const char *GetSeverity(GLenum s)
     {
         switch (s)
         {
@@ -139,20 +138,22 @@ namespace Boundless
     }
 
     void opengl_error_callback(GLenum source, GLenum type, GLuint id,
-        GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+                               GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
     {
-        if (id == 131169 || id == 131185 || id == 131218 || id == 131204) return;
-        const char* char_source = GetSourceFrom(source);
-        const char* char_type = GetSourceType(type);
-        const char* char_severity = GetSeverity(severity);
-        ERROR("OpenGL",char_severity << ">from " << char_source << ";type " << char_type << ";id " << id << ";\n" << message)
+        if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
+            return;
+        const char *char_source = GetSourceFrom(source);
+        const char *char_type = GetSourceType(type);
+        const char *char_severity = GetSeverity(severity);
+        ERROR("OpenGL", char_severity << ">from " << char_source << ";type " << char_type << ";id " << id << ";\n"
+                                      << message)
     }
 
-//////////////////////////////////////////////////////////////////
-//  GLFW回调处理部分
-//  GLFW Callback Handle
-//
-    GLFWwindow* window_ptr;
+    //////////////////////////////////////////////////////////////////
+    //  GLFW回调处理部分
+    //  GLFW Callback Handle
+    //
+    GLFWwindow *window_ptr;
 
     static std::list<GLFWframebuffersizefun> list_callback_framebuffersize;
 
@@ -177,7 +178,7 @@ namespace Boundless
     static std::list<GLFWmonitorfun> list_monitorfun;
     static std::list<GLFWjoystickfun> list_joystickfun;
 
-    void utility_errorfun(int error_code, const char* description)
+    void utility_errorfun(int error_code, const char *description)
     {
         for (auto val : list_errorfun)
         {
@@ -185,7 +186,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowposfun(GLFWwindow* window, int xpos, int ypos)
+    void utility_windowposfun(GLFWwindow *window, int xpos, int ypos)
     {
         for (auto val : list_windowposfun)
         {
@@ -193,7 +194,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowsizefun(GLFWwindow* window, int width, int height)
+    void utility_windowsizefun(GLFWwindow *window, int width, int height)
     {
         for (auto val : list_windowsizefun)
         {
@@ -201,7 +202,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowclosefun(GLFWwindow* window)
+    void utility_windowclosefun(GLFWwindow *window)
     {
         for (auto val : list_windowclosefun)
         {
@@ -209,7 +210,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowrefreshfun(GLFWwindow* window)
+    void utility_windowrefreshfun(GLFWwindow *window)
     {
         for (auto val : list_windowrefreshfun)
         {
@@ -217,7 +218,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowfocusfun(GLFWwindow* window, int focused)
+    void utility_windowfocusfun(GLFWwindow *window, int focused)
     {
         for (auto val : list_windowfocusfun)
         {
@@ -225,7 +226,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowiconifyfun(GLFWwindow* window, int iconified)
+    void utility_windowiconifyfun(GLFWwindow *window, int iconified)
     {
         for (auto val : list_windowiconifyfun)
         {
@@ -233,7 +234,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowmaximizefun(GLFWwindow* window, int maximized)
+    void utility_windowmaximizefun(GLFWwindow *window, int maximized)
     {
         for (auto val : list_windowmaximizefun)
         {
@@ -241,7 +242,7 @@ namespace Boundless
         }
     }
 
-    void utility_framebuffersizefun(GLFWwindow* window, int width, int height)
+    void utility_framebuffersizefun(GLFWwindow *window, int width, int height)
     {
         for (auto val : list_framebuffersizefun)
         {
@@ -249,7 +250,7 @@ namespace Boundless
         }
     }
 
-    void utility_windowcontentscalefun(GLFWwindow* window, float xscale, float yscale)
+    void utility_windowcontentscalefun(GLFWwindow *window, float xscale, float yscale)
     {
         for (auto val : list_windowcontentscalefun)
         {
@@ -257,7 +258,7 @@ namespace Boundless
         }
     }
 
-    void utility_mousebuttonfun(GLFWwindow* window, int button, int action, int mods)
+    void utility_mousebuttonfun(GLFWwindow *window, int button, int action, int mods)
     {
         for (auto val : list_mousebuttonfun)
         {
@@ -265,7 +266,7 @@ namespace Boundless
         }
     }
 
-    void utility_cursorposfun(GLFWwindow* window, double xpos, double ypos)
+    void utility_cursorposfun(GLFWwindow *window, double xpos, double ypos)
     {
         for (auto val : list_cursorposfun)
         {
@@ -273,7 +274,7 @@ namespace Boundless
         }
     }
 
-    void utility_cursorenterfun(GLFWwindow* window, int entered)
+    void utility_cursorenterfun(GLFWwindow *window, int entered)
     {
         for (auto val : list_cursorenterfun)
         {
@@ -281,7 +282,7 @@ namespace Boundless
         }
     }
 
-    void utility_scrollfun(GLFWwindow* window, double xoffset, double yoffset)
+    void utility_scrollfun(GLFWwindow *window, double xoffset, double yoffset)
     {
         for (auto val : list_scrollfun)
         {
@@ -289,7 +290,7 @@ namespace Boundless
         }
     }
 
-    void utility_keyfun(GLFWwindow* window, int key, int scancode, int action, int mods)
+    void utility_keyfun(GLFWwindow *window, int key, int scancode, int action, int mods)
     {
         for (auto val : list_keyfun)
         {
@@ -297,7 +298,7 @@ namespace Boundless
         }
     }
 
-    void utility_charfun(GLFWwindow* window, unsigned int codepoint)
+    void utility_charfun(GLFWwindow *window, unsigned int codepoint)
     {
         for (auto val : list_charfun)
         {
@@ -305,7 +306,7 @@ namespace Boundless
         }
     }
 
-    void utility_charmodsfun(GLFWwindow* window, unsigned int codepoint, int mods)
+    void utility_charmodsfun(GLFWwindow *window, unsigned int codepoint, int mods)
     {
         for (auto val : list_charmodsfun)
         {
@@ -313,7 +314,7 @@ namespace Boundless
         }
     }
 
-    void utility_dropfun(GLFWwindow* window, int path_count, const char* paths[])
+    void utility_dropfun(GLFWwindow *window, int path_count, const char *paths[])
     {
         for (auto val : list_dropfun)
         {
@@ -321,7 +322,7 @@ namespace Boundless
         }
     }
 
-    void utility_monitorfun(GLFWmonitor* monitor, int event)
+    void utility_monitorfun(GLFWmonitor *monitor, int event)
     {
         for (auto val : list_monitorfun)
         {
@@ -417,41 +418,40 @@ namespace Boundless
     {
         list_joystickfun.push_back(callback);
     }
-//////////////////////////////////////////////////////////////////
-//  OpenGL加载部分
-//  OpenGL Loading Handle
-//
-    //窗口大小
+    //////////////////////////////////////////////////////////////////
+    //  OpenGL加载部分
+    //  OpenGL Loading Handle
+    //
+    // 窗口大小
     unsigned int screen_width = SCREEN_INIT_WIDTH;
     unsigned int screen_height = SCREEN_INIT_HEIGHT;
 
-    //时间处理
+    // 时间处理
     double delta_time = 0.0;
     double current_time = 0.0;
     double last_time = 0.0;
 
-    //鼠标信息追踪
+    // 鼠标信息追踪
     double last_mouse_x = screen_width / 2.0;
     double last_mouse_y = screen_height / 2.0;
     double delta_mouse_x = 0.0;
     double delta_mouse_y = 0.0;
     bool firstMouse = true;
 
-    void process_input(GLFWwindow* windowptr)
+    void process_input(GLFWwindow *windowptr)
     {
         if (glfwGetKey(windowptr, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(windowptr, true);
-
     }
 
-    void framebuffer_size_callback(GLFWwindow* windowptr, int width, int height)
+    void framebuffer_size_callback(GLFWwindow *windowptr, int width, int height)
     {
         screen_height = height;
-        screen_width  = width;
+        screen_width = width;
         glViewport(0, 0, width, height);
     }
 
-    void mouse_callback(GLFWwindow* windowptr, double xposIn, double yposIn)
+    void mouse_callback(GLFWwindow *windowptr, double xposIn, double yposIn)
     {
         if (firstMouse)
         {
@@ -485,12 +485,12 @@ namespace Boundless
         window_ptr = glfwCreateWindow(SCREEN_INIT_WIDTH, SCREEN_INIT_HEIGHT, WINDOW_NAME, nullptr, nullptr);
         if (window_ptr == nullptr)
         {
-            ERROR("GLFW","创建窗口失败")
+            ERROR("GLFW", "创建窗口失败")
             glfwTerminate();
             return false;
         }
         glfwMakeContextCurrent(window_ptr);
-        //设置回调函数
+        // 设置回调函数
         {
             glfwSetErrorCallback(utility_errorfun);
             glfwSetMonitorCallback(utility_monitorfun);
@@ -513,13 +513,13 @@ namespace Boundless
             glfwSetDropCallback(window_ptr, utility_dropfun);
             glfwSetJoystickCallback(utility_joystickfun);
         }
-        //添加回调函数
+        // 添加回调函数
         AddFramebufferSizeCallback(framebuffer_size_callback);
         AddCursorPosCallback(mouse_callback);
 
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         {
-            ERROR("GLAD","创建失败")
+            ERROR("GLAD", "创建失败")
             glfwTerminate();
             return false;
         }
@@ -532,13 +532,110 @@ namespace Boundless
             glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
             glDebugMessageCallback(opengl_error_callback, nullptr);
             glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-            INFO("OpenGL","启用调试上下文成功")
+            INFO("OpenGL", "启用调试上下文成功")
         }
         else
         {
-            INFO("OpenGL","启用调试上下文失败")
+            INFO("OpenGL", "启用调试上下文失败")
         }
 #endif
         return true;
+    }
+
+    //////////////////////////////////////////////////////////////////
+    //  OpenGL 类
+    //  OpenGL Classes
+    //
+    Buffer::Buffer()
+    {
+        glCreateBuffers(1,&(this->buffer_id));
+    }
+    Buffer::Buffer(GLenum target)
+    {
+        glCreateBuffers(1,&(this->buffer_id));
+        this->buffer_target = target;
+    }
+    Buffer::~Buffer()
+    {
+        glDeleteBuffers(1,&(this->buffer_id));this->buffer_id = 0;
+    }
+
+    void Buffer::bind()
+    {
+        glBindBuffer(this->buffer_id,this->buffer_target);
+    }
+    void Buffer::unbind()
+    {
+        glBindBuffer(0,this->buffer_target);
+    }
+    void Buffer::bind(GLenum tar)
+    {
+        glBindBuffer(this->buffer_id,tar);
+    }
+    void Buffer::unbind(GLenum tar)
+    {
+        glBindBuffer(0,tar);
+    }
+    void Buffer::set_target(GLenum tar)
+    {
+        this->buffer_target = tar;
+    }
+
+    void Buffer::store_data(GLsizeiptr size, GLbitfield flags, const void *data)
+    {
+        buffer_size = size;
+        buffer_storeflags = flags;
+        glNamedBufferStorage(buffer_id,size,data,flags);
+    }
+    void Buffer::store_sub_data(const data_range &range, const void *data)
+    {
+        glNamedBufferSubData(buffer_id,range.offset,range.length,data);
+    }
+    void Buffer::fill_data(GLenum internal_format, GLenum format, GLenum type, const void *data)
+    {
+        glClearNamedBufferData(buffer_id,internal_format,format,type,data);
+    }
+    void Buffer::fill_sub_data(const data_range &range, GLenum internal_format, GLenum format, GLenum type, const void *data)
+    {
+        glClearNamedBufferSubData(buffer_id,internal_format,range.offset,range.length,format,type,data);
+    }
+
+    void Buffer::copy_data(Buffer &read, Buffer &write, const data_range &read_range, GLintptr write_offset)
+    {
+        glCopyNamedBufferSubData(read.buffer_id,write.buffer_id,read_range.offset,read_range.length,write_offset);
+    }
+
+    void Buffer::get_data(const data_range &range, void *write_to)
+    {
+        glGetNamedBufferSubData(buffer_id,range.offset,range.length,write_to);
+    }
+
+    void *Buffer::map(GLenum access)
+    {
+        map_access = access;
+        return glMapNamedBuffer(buffer_id,access);
+    }
+    void Buffer::unmap()
+    {
+        glUnmapNamedBuffer(buffer_id);
+    }
+    void *Buffer::map_range(const data_range &range, GLbitfield flags)
+    {
+        map_bitfield = flags;
+        return glMapNamedBufferRange(buffer_id,range.offset,range.length,flags);
+    }
+    void Buffer::flush_map(const data_range &range)
+    {
+        glFlushMappedNamedBufferRange(buffer_id,range.offset,range.length);
+    }
+
+    void Buffer::invalidate()
+    {
+        buffer_size = 0;buffer_storeflags = 0;
+        glInvalidateBufferData(buffer_id);
+    }
+    void Buffer::invalidate_sub(const data_range &range)
+    {
+        glInvalidateBufferSubData(buffer_id,range.offset,range.length);
     }
 } // namespace Boundless
