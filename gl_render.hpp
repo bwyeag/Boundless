@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <utility>
+#include <map>
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
@@ -399,6 +401,193 @@ namespace Boundless
         /// @param v 设置的值
         /// @param val 属性信息
         void set_static(GLuint index, const layout_element &val, const void *v);
+    };
+    //////////////////////////////////////////////////////////////////
+    //  OpenGL 着色器类
+    //  OpenGL Shader Classes
+    //
+    class Shader
+    {
+    private:
+        GLuint shader_id;
+        GLenum shader_type;
+    public:
+        Shader() {};
+        Shader(const std::string& path, GLenum type);
+        Shader(const Shader& target)
+            :shader_id(target.shader_id), shader_type(target.shader_type)
+        {}
+        Shader(Shader&& target) noexcept
+            :shader_id(target.shader_id), shader_type(target.shader_type)
+        {
+            target.shader_id = 0;
+        }
+        Shader& operator=(const Shader& target)
+        {
+            this->shader_id = target.shader_id;
+            this->shader_type = target.shader_type;
+
+            return *this;
+        }
+        Shader& operator=(Shader&& target) noexcept
+        {
+            if (&target == this)
+            {
+                return *this;
+            }
+            this->shader_id = target.shader_id;
+            this->shader_type = target.shader_type;
+
+            target.shader_id = 0;
+            return *this;
+        }
+        ~Shader()
+        {
+            glDeleteShader(this->shader_id);
+        }
+        GLuint GetID() const { return this->shader_id; }
+
+    };
+
+#define DEAUFT_PROGRAM_SHADER_COUNT 2
+#define PROGRAM_LOG_MAX_SIZE 4096
+    class Program
+    {
+    private:
+        GLuint program_id;
+        std::vector<Shader> program_shader;
+        mutable std::map<std::string, GLint> shader_uniformmap;
+    #ifdef _DEBUG
+        void PrintLog() const;
+    #endif
+        GLint GetUniformLocation(const std::string& target) const;
+        GLint GetUniformBlockLocation(const std::string& target) const;
+    public:
+        Program(GLuint n = DEAUFT_PROGRAM_SHADER_COUNT);
+        Program(const Program& target)=delete;
+        Program(Program&& target) noexcept=default;
+        Program& operator=(const Program& target)=delete;
+        Program& operator=(Program&& target) noexcept=default;
+        Shader& operator[](size_t index);
+        ~Program();
+        void UseShader(Shader& t);
+        void MoveShader(Shader&& t);
+        void Use() const;
+        void UnUse() const;
+        void Link() const;
+
+        void use_uniformblock(const std::string& name, GLuint index);
+        //设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
+        void set_texture(const std::string& name, GLint unit);
+        //设置布尔值
+        void set_bool(const std::string& name, GLboolean value);
+        //设置int
+        void set_int(const std::string& name, GLint value);
+        //设置uint
+        void set_uint(const std::string& name, GLuint value);
+        //设置浮点数
+        void set_float(const std::string& name, GLfloat value);
+        //设置二维向量（float）
+        void set_vec2(const std::string& name, const glm::vec2& value);
+        //设置二维向量（float）
+        void set_vec2(const std::string& name, GLfloat x, GLfloat y);
+
+        //设置三维向量（float）
+        void set_vec3(const std::string& name, const glm::vec3& value);
+        //设置三维向量（float）
+        void set_vec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z);
+
+        //设置四维向量（float）
+        void set_vec4(const std::string& name, const glm::vec4& value);
+        //设置四维向量（float）
+        void set_vec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+
+        //设置2*2矩阵（float）
+        void set_mat2(const std::string& name, const glm::mat2& mat);
+        //设置3*3矩阵（float）
+        void set_mat3(const std::string& name, const glm::mat3& mat);
+        //设置4*4矩阵（float）
+        void set_mat4(const std::string& name, const glm::mat4& mat);
+        //设置双精度浮点数
+        void set_double(const std::string& name, GLdouble value);
+        //设置二维向量（double）
+        void set_vec2(const std::string& name, const glm::dvec2& value);
+        //设置二维向量（double）
+        void set_vec2(const std::string& name, GLdouble x, GLdouble y);
+
+        //设置三维向量（double）
+        void set_vec3(const std::string& name, const glm::dvec3& value);
+        //设置三维向量（double）
+        void set_vec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z);
+
+        //设置四维向量（double）
+        void set_vec4(const std::string& name, const glm::dvec4& value);
+        //设置四维向量（double）
+        void set_vec4(const std::string& name, GLdouble x, GLdouble y, GLdouble z, GLdouble w);
+
+        //设置2*2矩阵（double）
+        void set_mat2(const std::string& name, const glm::dmat2& mat);
+        //设置3*3矩阵（double）
+        void set_mat3(const std::string& name, const glm::dmat3& mat);
+        //设置4*4矩阵（double）
+        void set_mat4(const std::string& name, const glm::dmat4& mat);
+
+        //设置二维向量（int）
+        void set_vec2(const std::string& name, const glm::ivec2& value);
+        //设置二维向量（int）
+        void set_vec2(const std::string& name, GLint x, GLint y);
+
+        //设置三维向量（int）
+        void set_vec3(const std::string& name, const glm::ivec3& value);
+        //设置三维向量（int）
+        void set_vec3(const std::string& name, GLint x, GLint y, GLint z);
+
+        //设置四维向量（int）
+        void set_vec4(const std::string& name, const glm::ivec4& value);
+        //设置四维向量（int）
+        void set_vec4(const std::string& name, GLint x, GLint y, GLint z, GLint w);
+        //设置二维向量（uint32_t）
+        void set_vec2(const std::string& name, const glm::uvec2& value);
+        //设置二维向量（uint32_t）
+        void set_vec2(const std::string& name, GLuint x, GLuint y);
+
+        //设置三维向量（uint32_t）
+        void set_vec3(const std::string& name, const glm::uvec3& value);
+        //设置三维向量（uint32_t）
+        void set_vec3(const std::string& name, GLuint x, GLuint y, GLuint z);
+
+        //设置四维向量（uint32_t）
+        void set_vec4(const std::string& name, const glm::uvec4& value);
+        //设置四维向量（uint32_t）
+        void set_vec4(const std::string& name, GLuint x, GLuint y, GLuint z, GLuint w);
+    };
+
+    //////////////////////////////////////////////////////////////////
+    //  OpenGL 纹理类
+    //  OpenGL Texture Classes
+    //
+    class Texture
+    {
+    protected:
+        GLuint texture_id;
+        GLenum texture_type;
+    public:
+        Texture(GLenum texture_type)
+        {
+            glCreateTextures(texture_type, 1, &texture_id);
+        }
+        ~Texture()
+        {
+            glDeleteTextures(1, &texture_id)
+        }
+        void BindTo(GLuint unit)
+        {
+            glBindTextureUnit(unit, this->texture_id);
+        }
+        static void UnBindAt(GLuint unit)
+        {
+            glBindTextureUnit(unit, 0);
+        }
     };
 } // namespace Boundless
 
