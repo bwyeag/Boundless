@@ -548,33 +548,39 @@ namespace Boundless
     //
     Buffer::Buffer()
     {
-        glCreateBuffers(1,&(this->buffer_id));
+        glCreateBuffers(1, &(this->buffer_id));
     }
     Buffer::Buffer(GLenum target)
     {
-        glCreateBuffers(1,&(this->buffer_id));
+        glCreateBuffers(1, &(this->buffer_id));
         this->buffer_target = target;
+    }
+    Buffer::Buffer(GLenum target, GLsizeiptr size, GLbitfield flags, const void *data)
+        : Buffer(target)
+    {
+        store_data(size, flags, data);
     }
     Buffer::~Buffer()
     {
-        glDeleteBuffers(1,&(this->buffer_id));this->buffer_id = 0;
+        glDeleteBuffers(1, &(this->buffer_id));
+        this->buffer_id = 0;
     }
 
     void Buffer::bind()
     {
-        glBindBuffer(this->buffer_id,this->buffer_target);
+        glBindBuffer(this->buffer_id, this->buffer_target);
     }
     void Buffer::unbind()
     {
-        glBindBuffer(0,this->buffer_target);
+        glBindBuffer(0, this->buffer_target);
     }
     void Buffer::bind(GLenum tar)
     {
-        glBindBuffer(this->buffer_id,tar);
+        glBindBuffer(this->buffer_id, tar);
     }
     void Buffer::unbind(GLenum tar)
     {
-        glBindBuffer(0,tar);
+        glBindBuffer(0, tar);
     }
     void Buffer::set_target(GLenum tar)
     {
@@ -585,57 +591,456 @@ namespace Boundless
     {
         buffer_size = size;
         buffer_storeflags = flags;
-        glNamedBufferStorage(buffer_id,size,data,flags);
+        glNamedBufferStorage(buffer_id, size, data, flags);
     }
     void Buffer::store_sub_data(const data_range &range, const void *data)
     {
-        glNamedBufferSubData(buffer_id,range.offset,range.length,data);
+        glNamedBufferSubData(buffer_id, range.offset, range.length, data);
     }
     void Buffer::fill_data(GLenum internal_format, GLenum format, GLenum type, const void *data)
     {
-        glClearNamedBufferData(buffer_id,internal_format,format,type,data);
+        glClearNamedBufferData(buffer_id, internal_format, format, type, data);
     }
     void Buffer::fill_sub_data(const data_range &range, GLenum internal_format, GLenum format, GLenum type, const void *data)
     {
-        glClearNamedBufferSubData(buffer_id,internal_format,range.offset,range.length,format,type,data);
+        glClearNamedBufferSubData(buffer_id, internal_format, range.offset, range.length, format, type, data);
     }
 
     void Buffer::copy_data(Buffer &read, Buffer &write, const data_range &read_range, GLintptr write_offset)
     {
-        glCopyNamedBufferSubData(read.buffer_id,write.buffer_id,read_range.offset,read_range.length,write_offset);
+        glCopyNamedBufferSubData(read.buffer_id, write.buffer_id, read_range.offset, read_range.length, write_offset);
     }
 
     void Buffer::get_data(const data_range &range, void *write_to)
     {
-        glGetNamedBufferSubData(buffer_id,range.offset,range.length,write_to);
+        glGetNamedBufferSubData(buffer_id, range.offset, range.length, write_to);
     }
 
     void *Buffer::map(GLenum access)
     {
         map_access = access;
-        return glMapNamedBuffer(buffer_id,access);
+        map_range = {0, buffer_size};
+        return glMapNamedBuffer(buffer_id, access);
     }
     void Buffer::unmap()
     {
         glUnmapNamedBuffer(buffer_id);
     }
-    void *Buffer::map_range(const data_range &range, GLbitfield flags)
+    void *Buffer::map_sub(const data_range &range, GLbitfield flags)
     {
         map_bitfield = flags;
-        return glMapNamedBufferRange(buffer_id,range.offset,range.length,flags);
+        map_range = range;
+        return glMapNamedBufferRange(buffer_id, range.offset, range.length, flags);
     }
     void Buffer::flush_map(const data_range &range)
     {
-        glFlushMappedNamedBufferRange(buffer_id,range.offset,range.length);
+        glFlushMappedNamedBufferRange(buffer_id, range.offset, range.length);
     }
 
     void Buffer::invalidate()
     {
-        buffer_size = 0;buffer_storeflags = 0;
+        buffer_size = 0;
+        buffer_storeflags = 0;
         glInvalidateBufferData(buffer_id);
     }
     void Buffer::invalidate_sub(const data_range &range)
     {
-        glInvalidateBufferSubData(buffer_id,range.offset,range.length);
+        glInvalidateBufferSubData(buffer_id, range.offset, range.length);
+    }
+
+    layout_element::layout_element(GLenum type, GLuint count, GLboolean normalize)
+        : type(type), size(count * static_cast<GLuint>(opengl_type_size(type)))
+    {
+        this->info = 0x00000000;
+        if (normalize == GL_TRUE)
+        {
+            this->info |= 0xFF000000;
+        }
+        this->info |= static_cast<GLubyte>(count);
+    }
+    layout_element &layout_element::operator=(layout_element &target)
+    {
+        if (&target == this)
+        {
+            return *this;
+        }
+        type = target.type;
+        size = target.size;
+        info = target.info;
+        return *this;
+    }
+    layout_element &layout_element::operator=(layout_element &&target)
+    {
+        if (&target == this)
+        {
+            return *this;
+        }
+        type = target.type;
+        size = target.size;
+        info = target.info;
+        return *this;
+    }
+    void layout_element::set_count(GLuint count) const
+    {
+#ifdef _DEBUG
+        if (count > 0xFF)
+        {
+            WARNING("INPUT", "count过大")
+        }
+#endif
+        this->info &= 0xFFFFFF00;
+        this->info |= static_cast<GLubyte>(count);
+    }
+
+    GLuint layout_element::get_count() const
+    {
+        return this->info & 0x000000FF;
+    }
+    GLboolean layout_element::is_normalised() const
+    {
+        return (this->info & 0xFF000000) != 0;
+    }
+    void layout_element::set_normalised(bool enable) const
+    {
+        if (enable)
+        {
+            this->info |= 0xFF000000;
+        }
+        else
+        {
+            this->info &= 0x00FFFFFF;
+        }
+    }
+    IndexBuffer::IndexBuffer()
+        : Buffer(GL_ELEMENT_ARRAY_BUFFER)
+    {
+    }
+    IndexBuffer::IndexBuffer(GLenum draw_type, GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags)
+        : Buffer(GL_ELEMENT_ARRAY_BUFFER, size, flags, data), draw_type(draw_type), index_type(index_type),
+          index_count(size / opengl_type_size(index_type))
+    {
+    }
+    IndexBuffer::IndexBuffer(GLsizeiptr size, GLbitfield flags)
+        : Buffer(GL_ELEMENT_ARRAY_BUFFER, size, flags)
+    {
+    }
+    void IndexBuffer::set_data(GLenum draw_type, GLenum index_type)
+    {
+        this->set_draw_type(draw_type);
+        this->set_data_type(index_type);
+    }
+    void IndexBuffer::set_draw_type(GLenum draw_type)
+    {
+        this->draw_type = draw_type;
+    }
+    void IndexBuffer::set_data_type(GLenum index_type)
+    {
+        this->index_type = index_type;
+        this->index_count = this->buffer_size / opengl_type_size(index_type);
+    }
+    GLenum IndexBuffer::get_draw_type() const
+    {
+        return this->draw_type;
+    }
+    GLenum IndexBuffer::get_index_type() const
+    {
+        return this->index_type;
+    }
+    GLsizei IndexBuffer::get_index_count() const
+    {
+        return this->index_count;
+    }
+    IndexBuffer::operator GLuint() const
+    {
+        return this->buffer_id;
+    }
+    VertexBuffer::VertexBuffer(uint32_t reserve)
+        : Buffer(GL_ARRAY_BUFFER)
+    {
+        this->vertex_layout.reserve(reserve);
+    }
+    VertexBuffer::VertexBuffer(GLsizeiptr size,
+                               GLbitfield flags,
+                               uint32_t reserve,
+                               const void *data)
+        : Buffer(GL_ARRAY_BUFFER, size, flags, data)
+    {
+        vertex_layout.reserve(reserve);
+    }
+
+    VertexBuffer &VertexBuffer::operator<<(const layout_element &data)
+    {
+        this->vertex_size += data.size;
+        this->vertex_layout.push_back(data);
+        return *this;
+    }
+    VertexBuffer::operator GLuint() const
+    {
+        return this->buffer_id;
+    }
+    GLsizei VertexBuffer::get_size() const
+    {
+        return this->vertex_size;
+    }
+    const std::vector<layout_element> &VertexBuffer::get_layout() const
+    {
+        return this->vertex_layout;
+    }
+    VertexArray::VertexArray()
+    {
+        glCreateVertexArrays(1, &this->array_id);
+        layout_index = 0;
+    }
+
+    void VertexArray::use(VertexBuffer &target, const data_range &range, bool enable)
+    {
+        size_t offset = 0;
+        for (GLuint i = range.offset; i < range.offset + range.length; i++)
+        {
+            const layout_element &val = target.get_layout()[i];
+            if ((val.is_normalised() == GL_FALSE) && opengl_is_integer(val.type))
+            {
+                glVertexAttribIPointer(i, val.get_count(), val.type, target.get_size(),
+                                       (const void *)offset);
+            }
+            else if (val.type == GL_DOUBLE)
+            {
+                glVertexAttribLPointer(i, val.get_count(), val.type, target.get_size(),
+                                       (const void *)offset);
+            }
+            else
+            {
+                glVertexAttribPointer(i, val.get_count(), val.type, val.is_normalised(),
+                                      target.get_size(), (const void *)offset);
+            }
+            if (enable)
+            {
+                glEnableVertexAttribArray(this->layout_index);
+            }
+            this->layout_index++;
+            offset += val.size;
+        }
+    }
+    void VertexArray::use_all(VertexBuffer &target, bool enable)
+    {
+        this->use(target, {0, GLsizei(target.get_layout().size())}, enable);
+    }
+    void VertexArray::enable(GLuint index)
+    {
+#ifdef _DEBUG
+        assert(index <= layout_index);
+#endif
+        glEnableVertexAttribArray(index);
+    }
+    void VertexArray::disable(GLuint index)
+    {
+#ifdef _DEBUG
+        assert(index <= layout_index);
+#endif
+        glDisableVertexAttribArray(index);
+    }
+    void VertexArray::bind() const
+    {
+        glBindVertexArray(this->array_id);
+    }
+    void VertexArray::unbind() const
+    {
+        glBindVertexArray(0);
+    }
+    void VertexArray::set_static(GLuint index, const layout_element &val, const void *v)
+    {
+        if (opengl_is_integer(val.type))
+        {
+            if ((val.is_normalised() == GL_FALSE))
+            {
+                if (val.type == GL_INT)
+                {
+                    switch (val.get_count())
+                    {
+                    case 1:
+                        glVertexAttribI1iv(index, (const GLint *)v);
+                        return;
+                    case 2:
+                        glVertexAttribI2iv(index, (const GLint *)v);
+                        return;
+                    case 3:
+                        glVertexAttribI3iv(index, (const GLint *)v);
+                        return;
+                    case 4:
+                        glVertexAttribI4iv(index, (const GLint *)v);
+                        return;
+                    default:
+                        throw;
+                    }
+                }
+                else if (GL_UNSIGNED_BYTE)
+                {
+                    switch (val.get_count())
+                    {
+                    case 1:
+                        glVertexAttribI1uiv(index, (const GLuint *)v);
+                        return;
+                    case 2:
+                        glVertexAttribI2uiv(index, (const GLuint *)v);
+                        return;
+                    case 3:
+                        glVertexAttribI3uiv(index, (const GLuint *)v);
+                        return;
+                    case 4:
+                        glVertexAttribI4uiv(index, (const GLuint *)v);
+                        return;
+                    default:
+                        throw;
+                    }
+                }
+                else if (val.get_count() == 4)
+                {
+                    switch (val.type)
+                    {
+                    case GL_BYTE:
+                        glVertexAttribI4bv(index, (const GLbyte *)v);
+                        return;
+                    case GL_UNSIGNED_BYTE:
+                        glVertexAttribI4ubv(index, (const GLubyte *)v);
+                        return;
+                    case GL_SHORT:
+                        glVertexAttribI4sv(index, (const GLshort *)v);
+                        return;
+                    case GL_UNSIGNED_SHORT:
+                        glVertexAttribI4usv(index, (const GLushort *)v);
+                        return;
+                    default:
+                        throw;
+                    }
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            else
+            {
+                switch (val.type)
+                {
+                case GL_BYTE:
+                    glVertexAttrib4Nbv(index, (const GLbyte *)v);
+                    return;
+                case GL_UNSIGNED_BYTE:
+                    glVertexAttrib4Nubv(index, (const GLubyte *)v);
+                    return;
+                case GL_SHORT:
+                    glVertexAttrib4Nsv(index, (const GLshort *)v);
+                    return;
+                case GL_UNSIGNED_SHORT:
+                    glVertexAttrib4Nusv(index, (const GLushort *)v);
+                    return;
+                case GL_INT:
+                    glVertexAttrib4Niv(index, (const GLint *)v);
+                    return;
+                case GL_UNSIGNED_INT:
+                    glVertexAttrib4Nuiv(index, (const GLuint *)v);
+                    return;
+                default:
+                    break;
+                }
+            }
+        }
+        if (val.type == GL_DOUBLE)
+        {
+            switch (val.get_count())
+            {
+            case 1:
+                glVertexAttribL1dv(index, (const GLdouble *)v);
+                return;
+            case 2:
+                glVertexAttribL1dv(index, (const GLdouble *)v);
+                return;
+            case 3:
+                glVertexAttribL3dv(index, (const GLdouble *)v);
+                return;
+            case 4:
+                glVertexAttribL4dv(index, (const GLdouble *)v);
+                return;
+            default:
+                break;
+            }
+        }
+        switch (val.get_count())
+        {
+        case 1:
+            switch (val.type)
+            {
+            case GL_FLOAT:
+                glVertexAttrib1fv(index, (const GLfloat *)v);
+                return;
+            case GL_DOUBLE:
+                glVertexAttrib1dv(index, (const GLdouble *)v);
+                return;
+            case GL_SHORT:
+                glVertexAttrib1sv(index, (const GLshort *)v);
+                return;
+            default:
+                throw;
+            }
+        case 2:
+            switch (val.type)
+            {
+            case GL_FLOAT:
+                glVertexAttrib2fv(index, (const GLfloat *)v);
+                return;
+            case GL_DOUBLE:
+                glVertexAttrib2dv(index, (const GLdouble *)v);
+                return;
+            case GL_SHORT:
+                glVertexAttrib2sv(index, (const GLshort *)v);
+                return;
+            default:
+                throw;
+            }
+        case 3:
+            switch (val.type)
+            {
+            case GL_FLOAT:
+                glVertexAttrib3fv(index, (const GLfloat *)v);
+                return;
+            case GL_DOUBLE:
+                glVertexAttrib3dv(index, (const GLdouble *)v);
+                return;
+            case GL_SHORT:
+                glVertexAttrib3sv(index, (const GLshort *)v);
+                return;
+            default:
+                throw;
+            }
+        case 4:
+            switch (val.type)
+            {
+            case GL_FLOAT:
+                glVertexAttrib4fv(index, (const GLfloat *)v);
+                return;
+            case GL_DOUBLE:
+                glVertexAttrib4dv(index, (const GLdouble *)v);
+                return;
+            case GL_SHORT:
+                glVertexAttrib4sv(index, (const GLshort *)v);
+                return;
+            case GL_BYTE:
+                glVertexAttrib4bv(index, (const GLbyte *)v);
+                return;
+            case GL_UNSIGNED_BYTE:
+                glVertexAttrib4ubv(index, (const GLubyte *)v);
+                return;
+            case GL_INT:
+                glVertexAttrib4iv(index, (const GLint *)v);
+                return;
+            case GL_UNSIGNED_INT:
+                glVertexAttrib4uiv(index, (const GLuint *)v);
+                return;
+            default:
+                throw;
+            }
+        default:
+            throw;
+        }
     }
 } // namespace Boundless

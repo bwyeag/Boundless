@@ -4,6 +4,8 @@
  * OpenGL Render C++ Header
  *
  */
+#ifndef _BOUNDLESS_GL_RENDER_HPP_FILE_
+#define _BOUNDLESS_GL_RENDER_HPP_FILE_
 #include "includes/glad/glad.h"
 #include "includes/GLFW/glfw3.h"
 #include "glm/glm.hpp"
@@ -147,24 +149,94 @@ namespace Boundless
     /// @brief 初始化OpenGL函数
     /// @return 初始化是否成功
     bool opengl_init();
-
+    //////////////////////////////////////////////////////////////////
+    //  OpenGL 辅助函数
+    //  OpenGL Helper Functions
+    //
+    constexpr inline bool opengl_is_integer(GLenum type)
+    {
+        switch (type)
+        {
+        case GL_BYTE:
+            return true;
+        case GL_UNSIGNED_BYTE:
+            return true;
+        case GL_SHORT:
+            return true;
+        case GL_UNSIGNED_SHORT:
+            return true;
+        case GL_INT:
+            return true;
+        case GL_UNSIGNED_INT:
+            return true;
+        case GL_FIXED:
+            return false;
+        case GL_FLOAT:
+            return false;
+        case GL_HALF_FLOAT:
+            return false;
+        case GL_DOUBLE:
+            return false;
+        case GL_INT_2_10_10_10_REV:
+            return false;
+        case GL_UNSIGNED_INT_2_10_10_10_REV:
+            return false;
+        default:
+            throw;
+        }
+    }
+    constexpr inline size_t opengl_type_size(GLenum type)
+    {
+        switch (type)
+        {
+        case GL_BYTE:
+            return sizeof(GLbyte);
+        case GL_UNSIGNED_BYTE:
+            return sizeof(GLubyte);
+        case GL_SHORT:
+            return sizeof(GLshort);
+        case GL_UNSIGNED_SHORT:
+            return sizeof(GLushort);
+        case GL_INT:
+            return sizeof(GLint);
+        case GL_UNSIGNED_INT:
+            return sizeof(GLuint);
+        case GL_FIXED:
+            return sizeof(GLfixed);
+        case GL_FLOAT:
+            return sizeof(GLfloat);
+        case GL_HALF_FLOAT:
+            return sizeof(GLhalf);
+        case GL_DOUBLE:
+            return sizeof(GLdouble);
+        case GL_INT_2_10_10_10_REV:
+            return sizeof(GLuint);
+        case GL_UNSIGNED_INT_2_10_10_10_REV:
+            return sizeof(GLuint);
+        default:
+            throw;
+        }
+    }
     //////////////////////////////////////////////////////////////////
     //  OpenGL 类
     //  OpenGL Classes
     //
+
+    /// @brief 存储数据范围的传递结构
     struct data_range
     {
         GLintptr offset;
         GLsizeiptr length;
     };
 
+    /// @brief 所有*Buffer的基类
     class Buffer
     {
-    private:
+    protected:
         GLuint buffer_id;
         GLenum buffer_target;
         GLsizeiptr buffer_size;
-        GLbitfield buffer_storeflags ;
+        GLbitfield buffer_storeflags;
         union
         {
             GLenum map_access;
@@ -175,6 +247,7 @@ namespace Boundless
     public:
         Buffer();
         Buffer(GLenum);
+        Buffer(GLenum target, GLsizeiptr size, GLbitfield flags, const void *data = nullptr);
         Buffer(Buffer &&) = default;
         Buffer(const Buffer &) = delete;
         Buffer &operator=(Buffer &&) = default;
@@ -198,11 +271,135 @@ namespace Boundless
 
         void *map(GLenum access);
         void unmap();
-        void *map_range(const data_range &range, GLbitfield flags);
+        void *map_sub(const data_range &range, GLbitfield flags);
         void flush_map(const data_range &range);
 
         void invalidate();
         void invalidate_sub(const data_range &range);
     };
+    /// @brief 用于存储顶点数组属性的类
+    class layout_element
+    {
+    public:
+        /// @brief 属性数据类型
+        GLenum type;
+        /// @brief 数据长度
+        GLsizei size;
+        /// @brief 复合对象包含多个信息
+        /// @details 字节排序（高位）-8a-8-8-8d-（低位）a:是否归一化,
+        ///          d:数量(1,2,3,4)
+        mutable GLuint info;
+        /// @brief 无参构造，不进行任何初始化
+        layout_element() = default;
+        /// @brief 构造函数，初始化数据
+        /// @param type 属性数据类型
+        /// @param count 数量
+        /// @param normalize 是否归一化到[-1,+1]或[0,1]（强制转换为float）
+        layout_element(GLenum type, GLuint count, GLboolean normalize);
+        /// @brief 移动构造函数（实际只是复制）
+        /// @param target 移动目标
+        layout_element(layout_element &&target) noexcept = default;
+        /// @brief 复制构造函数
+        /// @param target 复制目标
+        layout_element(const layout_element &target) = default;
+        layout_element &operator=(layout_element &target);
+        layout_element &operator=(layout_element &&target);
+        void set_count(GLuint count) const;
+        GLuint get_count() const;
+        GLboolean is_normalised() const;
+        void set_normalised(bool enable) const;
+    };
+    /// @brief 顶点索引类
+    class IndexBuffer : public Buffer
+    {
+    private:
+        /// @brief 绘制时索引排布方法
+        GLenum draw_type;
+        /// @brief 索引数据类型
+        GLenum index_type;
+        /// @brief 索引数量
+        GLsizei index_count;
 
+    public:
+        IndexBuffer();
+        IndexBuffer(GLenum draw_type, GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags);
+        IndexBuffer(GLsizeiptr size, GLbitfield flags);
+        IndexBuffer(const IndexBuffer &target) = delete;
+        IndexBuffer(IndexBuffer &&target) = default;
+        IndexBuffer &operator=(IndexBuffer &&target) noexcept = default;
+        IndexBuffer &operator=(const IndexBuffer &target) = delete;
+        void set_data(GLenum draw_type, GLenum index_type);
+        void set_draw_type(GLenum draw_type);
+        void set_data_type(GLenum index_type);
+        GLenum get_draw_type() const;
+        GLenum get_index_type() const;
+        GLsizei get_index_count() const;
+        /// @brief 获取id
+        operator GLuint() const;
+    };
+
+#define DEAUFT_VERTEX_ELEMENT_RESERVE 8
+
+    /// @brief 顶点数据类
+    class VertexBuffer : public Buffer
+    {
+    private:
+        GLsizei vertex_size = 0;
+        std::vector<layout_element> vertex_layout;
+
+    public:
+        VertexBuffer(std::uint32_t reserve = DEAUFT_VERTEX_ELEMENT_RESERVE);
+        VertexBuffer(GLsizeiptr size,
+                     GLbitfield flags,
+                     std::uint32_t reserve = DEAUFT_VERTEX_ELEMENT_RESERVE,
+                     const void *data = nullptr);
+        VertexBuffer(const VertexBuffer &target) = delete;
+        VertexBuffer(VertexBuffer &&target) noexcept = default;
+        VertexBuffer &operator=(const VertexBuffer &target) = delete;
+        VertexBuffer &operator=(VertexBuffer &&target) noexcept = default;
+        VertexBuffer &operator<<(const layout_element &data);
+        operator GLuint() const;
+
+        GLsizei get_size() const;
+        const std::vector<layout_element> &get_layout() const;
+    };
+
+    /// @brief 顶点数组类
+    class VertexArray
+    {
+    protected:
+        /// @brief 在OpenGL中的id
+        GLuint array_id;
+        /// @brief 当前最后一个未使用的顶点属性索引
+        GLuint layout_index;
+
+    public:
+        /// @brief 仅创建VertexArray
+        /// @param n 对顶点属性存储的容量（可扩容）
+        VertexArray();
+        VertexArray(const VertexArray &target) = delete;
+        VertexArray(VertexArray &&target) noexcept = default;
+        VertexArray &operator=(const VertexArray &target) = delete;
+        VertexArray &operator=(VertexArray &&target) noexcept = default;
+
+        /// @brief 设置与VAO关联的VBO（当前绑定的VertexBuffer）的顶点属性（先绑定自身和VBO）
+        /// @param target 设置顶点属性的目标
+        /// @param range 顶点属性在VBO中的范围
+        void use(VertexBuffer &target, const data_range &range, bool enable = false);
+        /// @brief 使用全部属性
+        void use_all(VertexBuffer &target, bool enable = false);
+        void enable(GLuint index);
+        void disable(GLuint index);
+        /// @brief 绑定VAO为当前VAO
+        void bind() const;
+        /// @brief 解绑VAO
+        void unbind() const;
+        /// @brief 设置静态顶点属性
+        /// @param index 属性索引
+        /// @param v 设置的值
+        /// @param val 属性信息
+        void set_static(GLuint index, const layout_element &val, const void *v);
+    };
 } // namespace Boundless
+
+#endif //!_BOUNDLESS_GL_RENDER_HPP_FILE_
