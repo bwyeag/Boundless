@@ -862,7 +862,7 @@ namespace Boundless
     void UniformBuffer::BindTo(GLuint index)
     {
         binding = index;
-        glBindBufferBase(GL_UNIFORM_BUFFER,index,buffer_id);
+        glBindBufferBase(GL_UNIFORM_BUFFER, index, buffer_id);
     }
 
     ShaderStorageBuffer::ShaderStorageBuffer()
@@ -880,7 +880,7 @@ namespace Boundless
     void ShaderStorageBuffer::BindTo(GLuint index)
     {
         binding = index;
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,buffer_id);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, buffer_id);
     }
     VertexArray::VertexArray()
     {
@@ -1140,15 +1140,15 @@ namespace Boundless
         }
     }
 
-    Shader::Shader(const std::string& path, GLenum type)
-        :shader_type(type)
+    Shader::Shader(const std::string &path, GLenum type)
+        : shader_type(type)
     {
 
         std::ifstream reader(path, std::ios::in);
         if (!reader.is_open())
         {
             this->shader_id = 0;
-            ERROR("Engine","未能成功打开文件：")
+            ERROR("Engine", "未能成功打开文件：")
             ERRORINFO(path)
             return;
         }
@@ -1156,7 +1156,7 @@ namespace Boundless
         reader.close();
 
         this->shader_id = glCreateShader(type);
-        const char* res = shader_code.c_str();
+        const char *res = shader_code.c_str();
         const GLint length = static_cast<GLint>(shader_code.size());
         glShaderSource(this->shader_id, 1, &res, &length);
         glCompileShader(this->shader_id);
@@ -1167,19 +1167,20 @@ namespace Boundless
         {
             int length;
             glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR("OpenGL","着色器编译失败:\n着色器文件:")
+            ERROR("OpenGL", "着色器编译失败:\n着色器文件:")
             ERRORINFO(shader_code << "\n----------------------------------------")
-            char* log = (char*)malloc(sizeof(char) * length);
+            char *log = (char *)malloc(sizeof(char) * length);
             if (log == nullptr)
             {
-                ERROR("OpenGL","日志内存申请失败")
+                ERROR("Memory", "日志内存申请失败")
                 throw std::bad_alloc();
             }
             else
             {
                 glGetShaderInfoLog(this->shader_id, length, &length, log);
-                ERROR("OpenGL","错误信息：\n")
-                ERRORINFO("错误信息：\n" << log)
+                ERROR("OpenGL", "错误信息：\n")
+                ERRORINFO("错误信息：\n"
+                          << log)
                 free(log);
             }
         }
@@ -1198,23 +1199,23 @@ namespace Boundless
         if (n != 0)
         {
             program_shader.reserve(n);
-            this->program_id = glCreateProgram();
         }
+        this->program_id = glCreateProgram();
     }
-    Shader& Program::operator[](size_t index)
+    Shader &Program::operator[](size_t index)
     {
-        return this->program_shader [index];
+        return this->program_shader[index];
     }
     Program::~Program()
     {
         glDeleteProgram(this->program_id);
     }
-    void Program::UseShader(Shader& t)
+    void Program::UseShader(Shader &t)
     {
         this->program_shader.push_back(t);
         glAttachShader(this->program_id, GLuint(this->program_shader.back()));
     }
-    void Program::MoveShader(Shader&& t)
+    void Program::MoveShader(Shader &&t)
     {
         this->program_shader.push_back(std::forward<Shader>(t));
         glAttachShader(this->program_id, GLuint(this->program_shader.back()));
@@ -1235,22 +1236,22 @@ namespace Boundless
         this->PrintLog();
 #endif
     }
-    GLint Program::GetUniformLocation(const std::string& target) const
+    GLint Program::GetUniformLocation(const std::string &target) const
     {
         if (shader_uniformmap.find(target) != shader_uniformmap.end())
-            return shader_uniformmap [target];
+            return shader_uniformmap[target];
         GLint location = glGetUniformLocation(this->program_id, target.c_str());
         if (location != -1)
-            shader_uniformmap [target] = location;
+            shader_uniformmap[target] = location;
         return location;
     }
-    GLint Program::GetUniformBlockLocation(const std::string& target) const
+    GLint Program::GetUniformBlockLocation(const std::string &target) const
     {
         if (shader_uniformmap.find(target) != shader_uniformmap.end())
-            return shader_uniformmap [target];
+            return shader_uniformmap[target];
         GLint location = glGetUniformBlockIndex(this->program_id, target.c_str());
         if (location != -1)
-            shader_uniformmap [target] = location;
+            shader_uniformmap[target] = location;
         return location;
     }
 #ifdef _DEBUG
@@ -1262,307 +1263,392 @@ namespace Boundless
         {
             GLsizei length;
             glGetProgramiv(this->program_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR("OpenGL","着色器程序链接错误")
-            char* log = (char*)malloc(length);
+            ERROR("OpenGL", "着色器程序链接错误")
+            char *log = (char *)malloc(length);
             if (log == nullptr)
             {
-                ERROR("OpenGL","日志内存申请失败")
+                ERROR("OpenGL", "日志内存申请失败")
                 throw std::bad_alloc();
             }
             else
             {
                 glGetProgramInfoLog(this->program_id, PROGRAM_LOG_MAX_SIZE, nullptr, log);
-                ERROR("OpenGL","错误信息：")
+                ERROR("OpenGL", "错误信息：")
                 ERRORINFO(log)
                 free(log);
             }
         }
     }
 #endif
-    void Program::SetUniformblockBinding(const std::string& name, GLuint index)
+    void Program::SetUniformblockBinding(const std::string &name, GLuint index)
     {
         GLint location = GetUniformBlockLocation(name);
         if (location != -1)
             glUniformBlockBinding(this->program_id, location, index);
     }
-    GLint Program::GetUniformblockSize(const std::string& name, GLuint index)
+    GLint Program::GetUniformblockSize(const std::string &name, GLuint index)
     {
-        GLint location = GetUniformBlockLocation(name),size;
-        if (location == -1) return;
-        glGetActiveUniformBlockiv(program_id,location,GL_UNIFORM_BLOCK_DATA_SIZE,&size);
+        GLint location = GetUniformBlockLocation(name), size;
+        if (location == -1)
+            return;
+        glGetActiveUniformBlockiv(program_id, location, GL_UNIFORM_BLOCK_DATA_SIZE, &size);
         return size;
     }
-    void Program::SetUniformblock(const std::string& name, UniformBuffer& ubo)
+    void Program::SetUniformblock(const std::string &name, UniformBuffer &ubo)
     {
         GLint location = GetUniformBlockLocation(name);
-        if (location == -1) return;
+        if (location == -1)
+            return;
         ubo.Bind();
-        glBindBufferBase(GL_UNIFORM_BUFFER,location,GLuint(ubo));
+        glBindBufferBase(GL_UNIFORM_BUFFER, location, GLuint(ubo));
     }
-    void Program::SetUniformblock(const std::string& name, UniformBuffer& ubo, const data_range& range)
+    void Program::SetUniformblock(const std::string &name, UniformBuffer &ubo, const data_range &range)
     {
         GLint location = GetUniformBlockLocation(name);
-        if (location == -1) return;
-        glBindBufferRange(GL_UNIFORM_BUFFER,location,GLuint(ubo),range.offset,range.length);
+        if (location == -1)
+            return;
+        glBindBufferRange(GL_UNIFORM_BUFFER, location, GLuint(ubo), range.offset, range.length);
     }
-    //设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
-    void Program::SetTexture(const std::string& name, GLint unit)
+    // 设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
+    void Program::SetTexture(const std::string &name, GLint unit)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1i(location, unit);
     }
-    //设置布尔值
-    void Program::SetBool(const std::string& name, GLboolean value)
+    // 设置布尔值
+    void Program::SetBool(const std::string &name, GLboolean value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1i(location, (int)value);
     }
-    //设置int
-    void Program::SetInt(const std::string& name, GLint value)
+    // 设置int
+    void Program::SetInt(const std::string &name, GLint value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1i(location, value);
     }
-    //设置uint
-    void Program::SetUint(const std::string& name, GLuint value)
+    // 设置uint
+    void Program::SetUint(const std::string &name, GLuint value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1ui(location, value);
     }
-    //设置浮点数
-    void Program::SetFloat(const std::string& name, GLfloat value)
+    // 设置浮点数
+    void Program::SetFloat(const std::string &name, GLfloat value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1f(location, value);
     }
-    //设置二维向量（float）
-    void Program::SetVec2(const std::string& name, const glm::vec2& value)
+    // 设置二维向量（float）
+    void Program::SetVec2(const std::string &name, const glm::vec2 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform2fv(location, 1, &value [0]);
+            glUniform2fv(location, 1, &value[0]);
     }
-    //设置二维向量（float）
-    void Program::SetVec2(const std::string& name, GLfloat x, GLfloat y)
+    // 设置二维向量（float）
+    void Program::SetVec2(const std::string &name, GLfloat x, GLfloat y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2f(location, x, y);
     }
 
-    //设置三维向量（float）
-    void Program::SetVec3(const std::string& name, const glm::vec3& value)
+    // 设置三维向量（float）
+    void Program::SetVec3(const std::string &name, const glm::vec3 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform3fv(location, 1, &value [0]);
+            glUniform3fv(location, 1, &value[0]);
     }
-    //设置三维向量（float）
-    void Program::SetVec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z)
+    // 设置三维向量（float）
+    void Program::SetVec3(const std::string &name, GLfloat x, GLfloat y, GLfloat z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3f(location, x, y, z);
     }
 
-    //设置四维向量（float）
-    void Program::SetVec4(const std::string& name, const glm::vec4& value)
+    // 设置四维向量（float）
+    void Program::SetVec4(const std::string &name, const glm::vec4 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform4fv(location, 1, &value [0]);
+            glUniform4fv(location, 1, &value[0]);
     }
-    //设置四维向量（float）
-    void Program::SetVec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+    // 设置四维向量（float）
+    void Program::SetVec4(const std::string &name, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4f(location, x, y, z, w);
     }
-
-    //设置2*2矩阵（float）
-    void Program::SetMat2(const std::string& name, const glm::mat2& mat)
+    // 设置二维向量数组（float）
+    void Program::SetVec2Array(const std::string &name, GLsizei count, const glm::vec2 *value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniformMatrix2fv(location, 1, GL_FALSE, &mat [0][0]);
+            glUniform2fv(location, count, (GLfloat*)value);
     }
-    //设置3*3矩阵（float）
-    void Program::SetMat3(const std::string& name, const glm::mat3& mat)
+    // 设置三维向量数组（float）
+    void Program::SetVec3Array(const std::string &name, GLsizei count, const glm::vec3 *value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniformMatrix3fv(location, 1, GL_FALSE, &mat [0][0]);
+            glUniform3fv(location, count, (GLfloat*)value);
     }
-    //设置4*4矩阵（float）
-    void Program::SetMat4(const std::string& name, const glm::mat4& mat)
+    // 设置四维向量数组（float）
+    void Program::SetVec4Array(const std::string &name, GLsizei count, const glm::vec4 *value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniformMatrix4fv(location, 1, GL_FALSE, &mat [0][0]);
+            glUniform4fv(location, count, (GLfloat*)value);
     }
-    //设置双精度浮点数
-    void Program::SetDouble(const std::string& name, GLdouble value)
+    // 设置2*2矩阵（float）
+    void Program::SetMat2(const std::string &name, const glm::mat2 &mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix2fv(location, 1, GL_FALSE, &mat[0][0]);
+    }
+    // 设置3*3矩阵（float）
+    void Program::SetMat3(const std::string &name, const glm::mat3 &mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix3fv(location, 1, GL_FALSE, &mat[0][0]);
+    }
+    // 设置4*4矩阵（float）
+    void Program::SetMat4(const std::string &name, const glm::mat4 &mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix4fv(location, 1, GL_FALSE, &mat[0][0]);
+    }
+    // 设置2*2矩阵数组（float）
+    void Program::SetMat2Array(const std::string &name, GLsizei count, const glm::mat2 *mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix2fv(location, count, GL_FALSE, (GLfloat *)mat);
+    }
+    // 设置3*3矩阵数组（float）
+    void Program::SetMat3Array(const std::string &name, GLsizei count, const glm::mat3 *mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix3fv(location, count, GL_FALSE, (GLfloat *)mat);
+    }
+    // 设置4*4矩阵数组（float）
+    void Program::SetMat4Array(const std::string &name, GLsizei count, const glm::mat4 *mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix4fv(location, count, GL_FALSE, (GLfloat *)mat);
+    }
+    // 设置双精度浮点数
+    void Program::SetDouble(const std::string &name, GLdouble value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1d(location, value);
     }
-    //设置二维向量（double）
-    void Program::SetVec2(const std::string& name, const glm::dvec2& value)
+    // 设置二维向量（double）
+    void Program::SetVec2(const std::string &name, const glm::dvec2 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform2dv(location, 1, &value [0]);
+            glUniform2dv(location, 1, &value[0]);
     }
-    //设置二维向量（double）
-    void Program::SetVec2(const std::string& name, GLdouble x, GLdouble y)
+    // 设置二维向量数组（double）
+    void Program::SetVec2Array(const std::string &name, GLsizei count, const glm::dvec2 *value)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniform2dv(location, count, (GLdouble *)value);
+    }
+    // 设置二维向量（double）
+    void Program::SetVec2(const std::string &name, GLdouble x, GLdouble y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2d(location, x, y);
     }
 
-    //设置三维向量（double）
-    void Program::SetVec3(const std::string& name, const glm::dvec3& value)
+    // 设置三维向量（double）
+    void Program::SetVec3(const std::string &name, const glm::dvec3 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform3dv(location, 1, &value [0]);
+            glUniform3dv(location, 1, &value[0]);
     }
-    //设置三维向量（double）
-    void Program::SetVec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z)
+    // 设置三维向量数组（double）
+    void Program::SetVec3Array(const std::string &name, GLsizei count, const glm::dvec3 *value)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniform3dv(location, count, (GLdouble *)value);
+    }
+    // 设置三维向量（double）
+    void Program::SetVec3(const std::string &name, GLdouble x, GLdouble y, GLdouble z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3d(location, x, y, z);
     }
 
-    //设置四维向量（double）
-    void Program::SetVec4(const std::string& name, const glm::dvec4& value)
+    // 设置四维向量（double）
+    void Program::SetVec4(const std::string &name, const glm::dvec4 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform4dv(location, 1, &value [0]);
+            glUniform4dv(location, 1, &value[0]);
     }
-    //设置四维向量（double）
-    void Program::SetVec4(const std::string& name, GLdouble x, GLdouble y, GLdouble z, GLdouble w)
+    // 设置四维向量数组（double）
+    void Program::SetVec4Array(const std::string &name, GLsizei count, const glm::dvec4 *value)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniform4dv(location, count, (GLdouble *)value);
+    }
+    // 设置四维向量（double）
+    void Program::SetVec4(const std::string &name, GLdouble x, GLdouble y, GLdouble z, GLdouble w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4d(location, x, y, z, w);
     }
 
-    //设置2*2矩阵（double）
-    void Program::SetMat2(const std::string& name, const glm::dmat2& mat)
+    // 设置2*2矩阵（double）
+    void Program::SetMat2(const std::string &name, const glm::dmat2 &mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniformMatrix2dv(location, 1, GL_FALSE, &mat [0][0]);
+            glUniformMatrix2dv(location, 1, GL_FALSE, &mat[0][0]);
     }
-    //设置3*3矩阵（double）
-    void Program::SetMat3(const std::string& name, const glm::dmat3& mat)
+    // 设置3*3矩阵（double）
+    void Program::SetMat3(const std::string &name, const glm::dmat3 &mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniformMatrix3dv(location, 1, GL_FALSE, &mat [0][0]);
+            glUniformMatrix3dv(location, 1, GL_FALSE, &mat[0][0]);
     }
-    //设置4*4矩阵（double）
-    void Program::SetMat4(const std::string& name, const glm::dmat4& mat)
+    // 设置4*4矩阵（double）
+    void Program::SetMat4(const std::string &name, const glm::dmat4 &mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniformMatrix4dv(location, 1, GL_FALSE, &mat [0][0]);
+            glUniformMatrix4dv(location, 1, GL_FALSE, &mat[0][0]);
     }
-
-    //设置二维向量（int）
-    void Program::SetVec2(const std::string& name, const glm::ivec2& value)
+    // 设置2*2矩阵数组（double）
+    void Program::SetMat2Array(const std::string &name, GLsizei count, const glm::dmat2 *mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform2iv(location, 1, &value [0]);
+            glUniformMatrix2dv(location, count, GL_FALSE, (GLdouble *)mat);
     }
-    //设置二维向量（int）
-    void Program::SetVec2(const std::string& name, GLint x, GLint y)
+    // 设置3*3矩阵数组（double）
+    void Program::SetMat3Array(const std::string &name, GLsizei count, const glm::dmat3 *mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix3dv(location, count, GL_FALSE, (GLdouble *)mat);
+    }
+    // 设置4*4矩阵数组（double）
+    void Program::SetMat4Array(const std::string &name, GLsizei count, const glm::dmat4 *mat)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniformMatrix4dv(location, count, GL_FALSE, (GLdouble *)mat);
+    }
+    // 设置二维向量（int）
+    void Program::SetVec2(const std::string &name, const glm::ivec2 &value)
+    {
+        GLint location = GetUniformLocation(name);
+        if (location != -1)
+            glUniform2iv(location, 1, &value[0]);
+    }
+    // 设置二维向量（int）
+    void Program::SetVec2(const std::string &name, GLint x, GLint y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2i(location, x, y);
     }
 
-    //设置三维向量（int）
-    void Program::SetVec3(const std::string& name, const glm::ivec3& value)
+    // 设置三维向量（int）
+    void Program::SetVec3(const std::string &name, const glm::ivec3 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform3iv(location, 1, &value [0]);
+            glUniform3iv(location, 1, &value[0]);
     }
-    //设置三维向量（int）
-    void Program::SetVec3(const std::string& name, GLint x, GLint y, GLint z)
+    // 设置三维向量（int）
+    void Program::SetVec3(const std::string &name, GLint x, GLint y, GLint z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3i(location, x, y, z);
     }
 
-    //设置四维向量（int）
-    void Program::SetVec4(const std::string& name, const glm::ivec4& value)
+    // 设置四维向量（int）
+    void Program::SetVec4(const std::string &name, const glm::ivec4 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform4iv(location, 1, &value [0]);
+            glUniform4iv(location, 1, &value[0]);
     }
-    //设置四维向量（int）
-    void Program::SetVec4(const std::string& name, GLint x, GLint y, GLint z, GLint w)
+    // 设置四维向量（int）
+    void Program::SetVec4(const std::string &name, GLint x, GLint y, GLint z, GLint w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4i(location, x, y, z, w);
     }
-    //设置二维向量（uint32_t）
-    void Program::SetVec2(const std::string& name, const glm::uvec2& value)
+    // 设置二维向量（uint32_t）
+    void Program::SetVec2(const std::string &name, const glm::uvec2 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform2uiv(location, 1, &value [0]);
+            glUniform2uiv(location, 1, &value[0]);
     }
-    //设置二维向量（uint32_t）
-    void Program::SetVec2(const std::string& name, GLuint x, GLuint y)
+    // 设置二维向量（uint32_t）
+    void Program::SetVec2(const std::string &name, GLuint x, GLuint y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2ui(location, x, y);
     }
 
-    //设置三维向量（uint32_t）
-    void Program::SetVec3(const std::string& name, const glm::uvec3& value)
+    // 设置三维向量（uint32_t）
+    void Program::SetVec3(const std::string &name, const glm::uvec3 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform3uiv(location, 1, &value [0]);
+            glUniform3uiv(location, 1, &value[0]);
     }
-    //设置三维向量（uint32_t）
-    void Program::SetVec3(const std::string& name, GLuint x, GLuint y, GLuint z)
+    // 设置三维向量（uint32_t）
+    void Program::SetVec3(const std::string &name, GLuint x, GLuint y, GLuint z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3ui(location, x, y, z);
     }
 
-    //设置四维向量（uint32_t）
-    void Program::SetVec4(const std::string& name, const glm::uvec4& value)
+    // 设置四维向量（uint32_t）
+    void Program::SetVec4(const std::string &name, const glm::uvec4 &value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform4uiv(location, 1, &value [0]);
+            glUniform4uiv(location, 1, &value[0]);
     }
-    //设置四维向量（uint32_t）
-    void Program::SetVec4(const std::string& name, GLuint x, GLuint y, GLuint z, GLuint w)
+    // 设置四维向量（uint32_t）
+    void Program::SetVec4(const std::string &name, GLuint x, GLuint y, GLuint z, GLuint w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
