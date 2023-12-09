@@ -21,6 +21,7 @@
 #include <fstream>
 #include <vector>
 #include <list>
+#include <forward_list>
 #include <algorithm>
 
 #define ERROR(type, info) std::cerr << "[ERROR][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl;
@@ -100,7 +101,6 @@ namespace Boundless
     void utility_dropfun(GLFWwindow *window, int path_count, const char *paths[]);
     void utility_monitorfun(GLFWmonitor *monitor, int event);
     void utility_joystickfun(int jid, int event);
-
     void AddErrorCallback(GLFWerrorfun callback);
     void AddMonitorCallback(GLFWmonitorfun callback);
     void AddWindowPosCallback(GLFWwindowposfun callback);
@@ -155,7 +155,7 @@ namespace Boundless
     //  OpenGL 辅助函数
     //  OpenGL Helper Functions
     //
-    constexpr inline bool opengl_is_integer(GLenum type)
+    constexpr inline bool openglIsInteger(GLenum type)
     {
         switch (type)
         {
@@ -187,7 +187,7 @@ namespace Boundless
             throw;
         }
     }
-    constexpr inline size_t opengl_type_size(GLenum type)
+    constexpr inline size_t openglTypeSize(GLenum type)
     {
         switch (type)
         {
@@ -256,28 +256,29 @@ namespace Boundless
         Buffer &operator=(const Buffer &) = delete;
         ~Buffer();
 
-        void bind();
-        void unbind();
-        void bind(GLenum tar);
-        void unbind(GLenum tar);
-        void set_target(GLenum tar);
+        void Bind();
+        void Unbind();
+        void Bind(GLenum tar);
+        void Unbind(GLenum tar);
+        void SetTarget(GLenum tar);
 
-        void store_data(GLsizeiptr size, GLbitfield flags, const void *data = nullptr);
-        void store_sub_data(const data_range &range, const void *data);
-        void fill_data(GLenum internal_format, GLenum format, GLenum type, const void *data);
-        void fill_sub_data(const data_range &range, GLenum internal_format, GLenum format, GLenum type, const void *data);
+        void StoreData(GLsizeiptr size, GLbitfield flags, const void *data = nullptr);
+        void StoreSubData(const data_range &range, const void *data);
+        void FillData(GLenum internal_format, GLenum format, GLenum type, const void *data);
+        void FillSubData(const data_range &range, GLenum internal_format, GLenum format, GLenum type, const void *data);
 
-        static void copy_data(Buffer &read, Buffer &write, const data_range &read_range, GLintptr write_offset);
+        static void CopyData(Buffer &read, Buffer &write, const data_range &read_range, GLintptr write_offset);
 
-        void get_data(const data_range &range, void *write_to);
+        void GetData(const data_range &range, void *write_to);
 
-        void *map(GLenum access);
-        void unmap();
-        void *map_sub(const data_range &range, GLbitfield flags);
-        void flush_map(const data_range &range);
+        void *Map(GLenum access);
+        void Unmap();
+        void *MapSub(const data_range &range, GLbitfield flags);
+        void FlushMap(const data_range &range);
 
-        void invalidate();
-        void invalidate_sub(const data_range &range);
+        void Invalidate();
+        void InvalidateSub(const data_range &range);
+        operator GLuint();
     };
     /// @brief 用于存储顶点数组属性的类
     class layout_element
@@ -330,16 +331,43 @@ namespace Boundless
         IndexBuffer(IndexBuffer &&target) = default;
         IndexBuffer &operator=(IndexBuffer &&target) noexcept = default;
         IndexBuffer &operator=(const IndexBuffer &target) = delete;
-        void set_data(GLenum draw_type, GLenum index_type);
-        void set_draw_type(GLenum draw_type);
-        void set_data_type(GLenum index_type);
-        GLenum get_draw_type() const;
-        GLenum get_index_type() const;
-        GLsizei get_index_count() const;
+        void SetData(GLenum draw_type, GLenum index_type);
+        void SetDrawType(GLenum draw_type);
+        void SetDataType(GLenum index_type);
+        GLenum GetDrawType() const;
+        GLenum GetIndexType() const;
+        GLsizei GetIndexCount() const;
         /// @brief 获取id
         operator GLuint() const;
     };
-
+    class UniformBuffer : public Buffer
+    {
+    private:
+        GLint binding;
+    public:
+        UniformBuffer();
+        UniformBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags);
+        UniformBuffer(GLsizeiptr size, GLbitfield flags);
+        UniformBuffer(const UniformBuffer &target) = delete;
+        UniformBuffer(UniformBuffer &&target) = default;
+        UniformBuffer &operator=(UniformBuffer &&target) noexcept = default;
+        UniformBuffer &operator=(const UniformBuffer &target) = delete;
+        void BindTo(GLuint index);
+    };
+    class ShaderStorageBuffer : public Buffer
+    {
+    private:
+        GLint binding;
+    public:
+        ShaderStorageBuffer();
+        ShaderStorageBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags);
+        ShaderStorageBuffer(GLsizeiptr size, GLbitfield flags);
+        ShaderStorageBuffer(const ShaderStorageBuffer &target) = delete;
+        ShaderStorageBuffer(ShaderStorageBuffer &&target) = default;
+        ShaderStorageBuffer &operator=(ShaderStorageBuffer &&target) noexcept = default;
+        ShaderStorageBuffer &operator=(const ShaderStorageBuffer &target) = delete;
+        void BindTo(GLuint index);
+    };
 #define DEAUFT_VERTEX_ELEMENT_RESERVE 8
 
     /// @brief 顶点数据类
@@ -362,8 +390,8 @@ namespace Boundless
         VertexBuffer &operator<<(const layout_element &data);
         operator GLuint() const;
 
-        GLsizei get_size() const;
-        const std::vector<layout_element> &get_layout() const;
+        GLsizei GetSize() const;
+        const std::vector<layout_element> &GetLayout() const;
     };
 
     /// @brief 顶点数组类
@@ -387,20 +415,20 @@ namespace Boundless
         /// @brief 设置与VAO关联的VBO（当前绑定的VertexBuffer）的顶点属性（先绑定自身和VBO）
         /// @param target 设置顶点属性的目标
         /// @param range 顶点属性在VBO中的范围
-        void use(VertexBuffer &target, const data_range &range, bool enable = false);
+        void Use(VertexBuffer &target, const data_range &range, bool enable = false);
         /// @brief 使用全部属性
-        void use_all(VertexBuffer &target, bool enable = false);
-        void enable(GLuint index);
-        void disable(GLuint index);
+        void UseAll(VertexBuffer &target, bool enable = false);
+        void Enable(GLuint index);
+        void Disable(GLuint index);
         /// @brief 绑定VAO为当前VAO
-        void bind() const;
+        void Bind() const;
         /// @brief 解绑VAO
-        void unbind() const;
+        void Unbind() const;
         /// @brief 设置静态顶点属性
         /// @param index 属性索引
         /// @param v 设置的值
         /// @param val 属性信息
-        void set_static(GLuint index, const layout_element &val, const void *v);
+        void SetStatic(GLuint index, const layout_element &val, const void *v);
     };
     //////////////////////////////////////////////////////////////////
     //  OpenGL 着色器类
@@ -412,41 +440,13 @@ namespace Boundless
         GLuint shader_id;
         GLenum shader_type;
     public:
-        Shader() {};
         Shader(const std::string& path, GLenum type);
-        Shader(const Shader& target)
-            :shader_id(target.shader_id), shader_type(target.shader_type)
-        {}
-        Shader(Shader&& target) noexcept
-            :shader_id(target.shader_id), shader_type(target.shader_type)
-        {
-            target.shader_id = 0;
-        }
-        Shader& operator=(const Shader& target)
-        {
-            this->shader_id = target.shader_id;
-            this->shader_type = target.shader_type;
-
-            return *this;
-        }
-        Shader& operator=(Shader&& target) noexcept
-        {
-            if (&target == this)
-            {
-                return *this;
-            }
-            this->shader_id = target.shader_id;
-            this->shader_type = target.shader_type;
-
-            target.shader_id = 0;
-            return *this;
-        }
-        ~Shader()
-        {
-            glDeleteShader(this->shader_id);
-        }
-        GLuint GetID() const { return this->shader_id; }
-
+        Shader(const Shader&) = delete;
+        Shader(Shader&&) = default;
+        Shader& operator=(const Shader&) = delete;
+        Shader& operator=(Shader&&) = default;
+        ~Shader();
+        operator GLuint();
     };
 
 #define DEAUFT_PROGRAM_SHADER_COUNT 2
@@ -476,90 +476,93 @@ namespace Boundless
         void UnUse() const;
         void Link() const;
 
-        void use_uniformblock(const std::string& name, GLuint index);
+        void SetUniformblockBinding(const std::string& name, GLuint index);
+        GLint GetUniformblockSize(const std::string& name, GLuint index);
+        void SetUniformblock(const std::string& name, UniformBuffer& ubo);
+        void SetUniformblock(const std::string& name, UniformBuffer& ubo, const data_range& range);
         //设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
-        void set_texture(const std::string& name, GLint unit);
+        void SetTexture(const std::string& name, GLint unit);
         //设置布尔值
-        void set_bool(const std::string& name, GLboolean value);
+        void SetBool(const std::string& name, GLboolean value);
         //设置int
-        void set_int(const std::string& name, GLint value);
+        void SetInt(const std::string& name, GLint value);
         //设置uint
-        void set_uint(const std::string& name, GLuint value);
+        void SetUint(const std::string& name, GLuint value);
         //设置浮点数
-        void set_float(const std::string& name, GLfloat value);
+        void SetFloat(const std::string& name, GLfloat value);
         //设置二维向量（float）
-        void set_vec2(const std::string& name, const glm::vec2& value);
+        void SetVec2(const std::string& name, const glm::vec2& value);
         //设置二维向量（float）
-        void set_vec2(const std::string& name, GLfloat x, GLfloat y);
+        void SetVec2(const std::string& name, GLfloat x, GLfloat y);
 
         //设置三维向量（float）
-        void set_vec3(const std::string& name, const glm::vec3& value);
+        void SetVec3(const std::string& name, const glm::vec3& value);
         //设置三维向量（float）
-        void set_vec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z);
+        void SetVec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z);
 
         //设置四维向量（float）
-        void set_vec4(const std::string& name, const glm::vec4& value);
+        void SetVec4(const std::string& name, const glm::vec4& value);
         //设置四维向量（float）
-        void set_vec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+        void SetVec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
 
         //设置2*2矩阵（float）
-        void set_mat2(const std::string& name, const glm::mat2& mat);
+        void SetMat2(const std::string& name, const glm::mat2& mat);
         //设置3*3矩阵（float）
-        void set_mat3(const std::string& name, const glm::mat3& mat);
+        void SetMat3(const std::string& name, const glm::mat3& mat);
         //设置4*4矩阵（float）
-        void set_mat4(const std::string& name, const glm::mat4& mat);
+        void SetMat4(const std::string& name, const glm::mat4& mat);
         //设置双精度浮点数
-        void set_double(const std::string& name, GLdouble value);
+        void SetDouble(const std::string& name, GLdouble value);
         //设置二维向量（double）
-        void set_vec2(const std::string& name, const glm::dvec2& value);
+        void SetVec2(const std::string& name, const glm::dvec2& value);
         //设置二维向量（double）
-        void set_vec2(const std::string& name, GLdouble x, GLdouble y);
+        void SetVec2(const std::string& name, GLdouble x, GLdouble y);
 
         //设置三维向量（double）
-        void set_vec3(const std::string& name, const glm::dvec3& value);
+        void SetVec3(const std::string& name, const glm::dvec3& value);
         //设置三维向量（double）
-        void set_vec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z);
+        void SetVec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z);
 
         //设置四维向量（double）
-        void set_vec4(const std::string& name, const glm::dvec4& value);
+        void SetVec4(const std::string& name, const glm::dvec4& value);
         //设置四维向量（double）
-        void set_vec4(const std::string& name, GLdouble x, GLdouble y, GLdouble z, GLdouble w);
+        void SetVec4(const std::string& name, GLdouble x, GLdouble y, GLdouble z, GLdouble w);
 
         //设置2*2矩阵（double）
-        void set_mat2(const std::string& name, const glm::dmat2& mat);
+        void SetMat2(const std::string& name, const glm::dmat2& mat);
         //设置3*3矩阵（double）
-        void set_mat3(const std::string& name, const glm::dmat3& mat);
+        void SetMat3(const std::string& name, const glm::dmat3& mat);
         //设置4*4矩阵（double）
-        void set_mat4(const std::string& name, const glm::dmat4& mat);
+        void SetMat4(const std::string& name, const glm::dmat4& mat);
 
         //设置二维向量（int）
-        void set_vec2(const std::string& name, const glm::ivec2& value);
+        void SetVec2(const std::string& name, const glm::ivec2& value);
         //设置二维向量（int）
-        void set_vec2(const std::string& name, GLint x, GLint y);
+        void SetVec2(const std::string& name, GLint x, GLint y);
 
         //设置三维向量（int）
-        void set_vec3(const std::string& name, const glm::ivec3& value);
+        void SetVec3(const std::string& name, const glm::ivec3& value);
         //设置三维向量（int）
-        void set_vec3(const std::string& name, GLint x, GLint y, GLint z);
+        void SetVec3(const std::string& name, GLint x, GLint y, GLint z);
 
         //设置四维向量（int）
-        void set_vec4(const std::string& name, const glm::ivec4& value);
+        void SetVec4(const std::string& name, const glm::ivec4& value);
         //设置四维向量（int）
-        void set_vec4(const std::string& name, GLint x, GLint y, GLint z, GLint w);
+        void SetVec4(const std::string& name, GLint x, GLint y, GLint z, GLint w);
         //设置二维向量（uint32_t）
-        void set_vec2(const std::string& name, const glm::uvec2& value);
+        void SetVec2(const std::string& name, const glm::uvec2& value);
         //设置二维向量（uint32_t）
-        void set_vec2(const std::string& name, GLuint x, GLuint y);
+        void SetVec2(const std::string& name, GLuint x, GLuint y);
 
         //设置三维向量（uint32_t）
-        void set_vec3(const std::string& name, const glm::uvec3& value);
+        void SetVec3(const std::string& name, const glm::uvec3& value);
         //设置三维向量（uint32_t）
-        void set_vec3(const std::string& name, GLuint x, GLuint y, GLuint z);
+        void SetVec3(const std::string& name, GLuint x, GLuint y, GLuint z);
 
         //设置四维向量（uint32_t）
-        void set_vec4(const std::string& name, const glm::uvec4& value);
+        void SetVec4(const std::string& name, const glm::uvec4& value);
         //设置四维向量（uint32_t）
-        void set_vec4(const std::string& name, GLuint x, GLuint y, GLuint z, GLuint w);
+        void SetVec4(const std::string& name, GLuint x, GLuint y, GLuint z, GLuint w);
     };
 
     //////////////////////////////////////////////////////////////////
@@ -578,7 +581,7 @@ namespace Boundless
         }
         ~Texture()
         {
-            glDeleteTextures(1, &texture_id)
+            glDeleteTextures(1, &texture_id);
         }
         void BindTo(GLuint unit)
         {

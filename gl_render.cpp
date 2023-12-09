@@ -157,26 +157,26 @@ namespace Boundless
 
     static std::list<GLFWframebuffersizefun> list_callback_framebuffersize;
 
-    static std::list<GLFWerrorfun> list_errorfun;
-    static std::list<GLFWwindowposfun> list_windowposfun;
-    static std::list<GLFWwindowsizefun> list_windowsizefun;
-    static std::list<GLFWwindowclosefun> list_windowclosefun;
-    static std::list<GLFWwindowrefreshfun> list_windowrefreshfun;
-    static std::list<GLFWwindowfocusfun> list_windowfocusfun;
-    static std::list<GLFWwindowiconifyfun> list_windowiconifyfun;
-    static std::list<GLFWwindowmaximizefun> list_windowmaximizefun;
-    static std::list<GLFWframebuffersizefun> list_framebuffersizefun;
-    static std::list<GLFWwindowcontentscalefun> list_windowcontentscalefun;
-    static std::list<GLFWmousebuttonfun> list_mousebuttonfun;
-    static std::list<GLFWcursorposfun> list_cursorposfun;
-    static std::list<GLFWcursorenterfun> list_cursorenterfun;
-    static std::list<GLFWscrollfun> list_scrollfun;
-    static std::list<GLFWkeyfun> list_keyfun;
-    static std::list<GLFWcharfun> list_charfun;
-    static std::list<GLFWcharmodsfun> list_charmodsfun;
-    static std::list<GLFWdropfun> list_dropfun;
-    static std::list<GLFWmonitorfun> list_monitorfun;
-    static std::list<GLFWjoystickfun> list_joystickfun;
+    static std::forward_list<GLFWerrorfun> list_errorfun;
+    static std::forward_list<GLFWwindowposfun> list_windowposfun;
+    static std::forward_list<GLFWwindowsizefun> list_windowsizefun;
+    static std::forward_list<GLFWwindowclosefun> list_windowclosefun;
+    static std::forward_list<GLFWwindowrefreshfun> list_windowrefreshfun;
+    static std::forward_list<GLFWwindowfocusfun> list_windowfocusfun;
+    static std::forward_list<GLFWwindowiconifyfun> list_windowiconifyfun;
+    static std::forward_list<GLFWwindowmaximizefun> list_windowmaximizefun;
+    static std::forward_list<GLFWframebuffersizefun> list_framebuffersizefun;
+    static std::forward_list<GLFWwindowcontentscalefun> list_windowcontentscalefun;
+    static std::forward_list<GLFWmousebuttonfun> list_mousebuttonfun;
+    static std::forward_list<GLFWcursorposfun> list_cursorposfun;
+    static std::forward_list<GLFWcursorenterfun> list_cursorenterfun;
+    static std::forward_list<GLFWscrollfun> list_scrollfun;
+    static std::forward_list<GLFWkeyfun> list_keyfun;
+    static std::forward_list<GLFWcharfun> list_charfun;
+    static std::forward_list<GLFWcharmodsfun> list_charmodsfun;
+    static std::forward_list<GLFWdropfun> list_dropfun;
+    static std::forward_list<GLFWmonitorfun> list_monitorfun;
+    static std::forward_list<GLFWjoystickfun> list_joystickfun;
 
     void utility_errorfun(int error_code, const char *description)
     {
@@ -337,86 +337,165 @@ namespace Boundless
             val(jid, event);
         }
     }
-
     void AddErrorCallback(GLFWerrorfun callback)
     {
-        list_errorfun.push_back(callback);
+        if (list_errorfun.empty())
+        {
+            glfwSetErrorCallback(utility_errorfun);
+        }
+        list_errorfun.push_front(callback);
     }
     void AddMonitorCallback(GLFWmonitorfun callback)
     {
-        list_monitorfun.push_back(callback);
+        if (list_monitorfun.empty())
+        {
+            glfwSetMonitorCallback(utility_monitorfun);
+        }
+        list_monitorfun.push_front(callback);
     }
     void AddWindowPosCallback(GLFWwindowposfun callback)
     {
-        list_windowposfun.push_back(callback);
+        if (list_windowposfun.empty())
+        {
+            glfwSetWindowPosCallback(window_ptr, utility_windowposfun);
+        }
+        list_windowposfun.push_front(callback);
     }
     void AddWindowSizeCallback(GLFWwindowsizefun callback)
     {
-        list_windowsizefun.push_back(callback);
+        if (list_windowsizefun.empty())
+        {
+            glfwSetWindowSizeCallback(window_ptr, utility_windowsizefun);
+        }
+        list_windowsizefun.push_front(callback);
     }
     void AddWindowCloseCallback(GLFWwindowclosefun callback)
     {
-        list_windowclosefun.push_back(callback);
+        if (list_windowclosefun.empty())
+        {
+            glfwSetWindowCloseCallback(window_ptr, utility_windowclosefun);
+        }
+        list_windowclosefun.push_front(callback);
     }
     void AddWindowRefreshCallback(GLFWwindowrefreshfun callback)
     {
-        list_windowrefreshfun.push_back(callback);
+        if (list_windowrefreshfun.empty())
+        {
+            glfwSetWindowRefreshCallback(window_ptr, utility_windowrefreshfun);
+        }
+        list_windowrefreshfun.push_front(callback);
     }
     void AddWindowFocusCallback(GLFWwindowfocusfun callback)
     {
-        list_windowfocusfun.push_back(callback);
+        if (list_windowfocusfun.empty())
+        {
+            glfwSetWindowFocusCallback(window_ptr, utility_windowfocusfun);
+        }
+        list_windowfocusfun.push_front(callback);
     }
     void AddWindowIconifyCallback(GLFWwindowiconifyfun callback)
     {
-        list_windowiconifyfun.push_back(callback);
+        if (list_windowiconifyfun.empty())
+        {
+            glfwSetWindowIconifyCallback(window_ptr, utility_windowiconifyfun);
+        }
+        list_windowiconifyfun.push_front(callback);
     }
     void AddWindowMaximizeCallback(GLFWwindowmaximizefun callback)
     {
-        list_windowmaximizefun.push_back(callback);
+        if (list_windowmaximizefun.empty())
+        {
+            glfwSetWindowMaximizeCallback(window_ptr, utility_windowmaximizefun);
+        }
+        list_windowmaximizefun.push_front(callback);
     }
     void AddFramebufferSizeCallback(GLFWframebuffersizefun callback)
     {
-        list_framebuffersizefun.push_back(callback);
+        if (list_framebuffersizefun.empty())
+        {
+            glfwSetFramebufferSizeCallback(window_ptr, utility_framebuffersizefun);
+        }
+        list_framebuffersizefun.push_front(callback);
     }
     void AddWindowContentScaleCallback(GLFWwindowcontentscalefun callback)
     {
-        list_windowcontentscalefun.push_back(callback);
+        if (list_windowcontentscalefun.empty())
+        {
+            glfwSetWindowContentScaleCallback(window_ptr, utility_windowcontentscalefun);
+        }
+        list_windowcontentscalefun.push_front(callback);
     }
     void AddKeyCallback(GLFWkeyfun callback)
     {
-        list_keyfun.push_back(callback);
+        if (list_keyfun.empty())
+        {
+            glfwSetKeyCallback(window_ptr, utility_keyfun);
+        }
+        list_keyfun.push_front(callback);
     }
     void AddCharCallback(GLFWcharfun callback)
     {
-        list_charfun.push_back(callback);
+        if (list_charfun.empty())
+        {
+            glfwSetCharCallback(window_ptr, utility_charfun);
+        }
+        list_charfun.push_front(callback);
     }
     void AddCharModsCallback(GLFWcharmodsfun callback)
     {
-        list_charmodsfun.push_back(callback);
+        if (list_charmodsfun.empty())
+        {
+            glfwSetCharModsCallback(window_ptr, utility_charmodsfun);
+        }
+        list_charmodsfun.push_front(callback);
     }
     void AddMouseButtonCallback(GLFWmousebuttonfun callback)
     {
-        list_mousebuttonfun.push_back(callback);
+        if (list_mousebuttonfun.empty())
+        {
+            glfwSetMouseButtonCallback(window_ptr, utility_mousebuttonfun);
+        }
+        list_mousebuttonfun.push_front(callback);
     }
     void AddCursorPosCallback(GLFWcursorposfun callback)
     {
-        list_cursorposfun.push_back(callback);
+        if (list_cursorposfun.empty())
+        {
+            glfwSetCursorPosCallback(window_ptr, utility_cursorposfun);
+        }
+        list_cursorposfun.push_front(callback);
     }
     void AddCursorEnterCallback(GLFWcursorenterfun callback)
     {
-        list_cursorenterfun.push_back(callback);
+        if (list_cursorenterfun.empty())
+        {
+            glfwSetCursorEnterCallback(window_ptr, utility_cursorenterfun);
+        }
+        list_cursorenterfun.push_front(callback);
     }
     void AddScrollCallback(GLFWscrollfun callback)
     {
-        list_scrollfun.push_back(callback);
+        if (list_scrollfun.empty())
+        {
+            glfwSetScrollCallback(window_ptr, utility_scrollfun);
+        }
+        list_scrollfun.push_front(callback);
     }
     void AddDropCallback(GLFWdropfun callback)
     {
-        list_dropfun.push_back(callback);
+        if (list_dropfun.empty())
+        {
+            glfwSetDropCallback(window_ptr, utility_dropfun);
+        }
+        list_dropfun.push_front(callback);
     }
     void AddJoystickCallback(GLFWjoystickfun callback)
     {
-        list_joystickfun.push_back(callback);
+        if (list_joystickfun.empty())
+        {
+            glfwSetJoystickCallback(utility_joystickfun);
+        }
+        list_joystickfun.push_front(callback);
     }
     //////////////////////////////////////////////////////////////////
     //  OpenGL加载部分
@@ -490,29 +569,6 @@ namespace Boundless
             return false;
         }
         glfwMakeContextCurrent(window_ptr);
-        // 设置回调函数
-        {
-            glfwSetErrorCallback(utility_errorfun);
-            glfwSetMonitorCallback(utility_monitorfun);
-            glfwSetWindowPosCallback(window_ptr, utility_windowposfun);
-            glfwSetWindowSizeCallback(window_ptr, utility_windowsizefun);
-            glfwSetWindowCloseCallback(window_ptr, utility_windowclosefun);
-            glfwSetWindowRefreshCallback(window_ptr, utility_windowrefreshfun);
-            glfwSetWindowFocusCallback(window_ptr, utility_windowfocusfun);
-            glfwSetWindowIconifyCallback(window_ptr, utility_windowiconifyfun);
-            glfwSetWindowMaximizeCallback(window_ptr, utility_windowmaximizefun);
-            glfwSetFramebufferSizeCallback(window_ptr, utility_framebuffersizefun);
-            glfwSetWindowContentScaleCallback(window_ptr, utility_windowcontentscalefun);
-            glfwSetKeyCallback(window_ptr, utility_keyfun);
-            glfwSetCharCallback(window_ptr, utility_charfun);
-            glfwSetCharModsCallback(window_ptr, utility_charmodsfun);
-            glfwSetMouseButtonCallback(window_ptr, utility_mousebuttonfun);
-            glfwSetCursorPosCallback(window_ptr, utility_cursorposfun);
-            glfwSetCursorEnterCallback(window_ptr, utility_cursorenterfun);
-            glfwSetScrollCallback(window_ptr, utility_scrollfun);
-            glfwSetDropCallback(window_ptr, utility_dropfun);
-            glfwSetJoystickCallback(utility_joystickfun);
-        }
         // 添加回调函数
         AddFramebufferSizeCallback(framebuffer_size_callback);
         AddCursorPosCallback(mouse_callback);
@@ -558,7 +614,7 @@ namespace Boundless
     Buffer::Buffer(GLenum target, GLsizeiptr size, GLbitfield flags, const void *data)
         : Buffer(target)
     {
-        store_data(size, flags, data);
+        StoreData(size, flags, data);
     }
     Buffer::~Buffer()
     {
@@ -566,90 +622,94 @@ namespace Boundless
         this->buffer_id = 0;
     }
 
-    void Buffer::bind()
+    void Buffer::Bind()
     {
         glBindBuffer(this->buffer_id, this->buffer_target);
     }
-    void Buffer::unbind()
+    void Buffer::Unbind()
     {
         glBindBuffer(0, this->buffer_target);
     }
-    void Buffer::bind(GLenum tar)
+    void Buffer::Bind(GLenum tar)
     {
         glBindBuffer(this->buffer_id, tar);
     }
-    void Buffer::unbind(GLenum tar)
+    void Buffer::Unbind(GLenum tar)
     {
         glBindBuffer(0, tar);
     }
-    void Buffer::set_target(GLenum tar)
+    void Buffer::SetTarget(GLenum tar)
     {
         this->buffer_target = tar;
     }
 
-    void Buffer::store_data(GLsizeiptr size, GLbitfield flags, const void *data)
+    void Buffer::StoreData(GLsizeiptr size, GLbitfield flags, const void *data = nullptr)
     {
         buffer_size = size;
         buffer_storeflags = flags;
         glNamedBufferStorage(buffer_id, size, data, flags);
     }
-    void Buffer::store_sub_data(const data_range &range, const void *data)
+    void Buffer::StoreSubData(const data_range &range, const void *data)
     {
         glNamedBufferSubData(buffer_id, range.offset, range.length, data);
     }
-    void Buffer::fill_data(GLenum internal_format, GLenum format, GLenum type, const void *data)
+    void Buffer::FillData(GLenum internal_format, GLenum format, GLenum type, const void *data)
     {
         glClearNamedBufferData(buffer_id, internal_format, format, type, data);
     }
-    void Buffer::fill_sub_data(const data_range &range, GLenum internal_format, GLenum format, GLenum type, const void *data)
+    void Buffer::FillSubData(const data_range &range, GLenum internal_format, GLenum format, GLenum type, const void *data)
     {
         glClearNamedBufferSubData(buffer_id, internal_format, range.offset, range.length, format, type, data);
     }
 
-    void Buffer::copy_data(Buffer &read, Buffer &write, const data_range &read_range, GLintptr write_offset)
+    void Buffer::CopyData(Buffer &read, Buffer &write, const data_range &read_range, GLintptr write_offset)
     {
         glCopyNamedBufferSubData(read.buffer_id, write.buffer_id, read_range.offset, read_range.length, write_offset);
     }
 
-    void Buffer::get_data(const data_range &range, void *write_to)
+    void Buffer::GetData(const data_range &range, void *write_to)
+
     {
         glGetNamedBufferSubData(buffer_id, range.offset, range.length, write_to);
     }
 
-    void *Buffer::map(GLenum access)
+    void *Buffer::Map(GLenum access)
     {
         map_access = access;
         map_range = {0, buffer_size};
         return glMapNamedBuffer(buffer_id, access);
     }
-    void Buffer::unmap()
+    void Buffer::Unmap()
     {
         glUnmapNamedBuffer(buffer_id);
     }
-    void *Buffer::map_sub(const data_range &range, GLbitfield flags)
+    void *Buffer::MapSub(const data_range &range, GLbitfield flags)
     {
         map_bitfield = flags;
         map_range = range;
         return glMapNamedBufferRange(buffer_id, range.offset, range.length, flags);
     }
-    void Buffer::flush_map(const data_range &range)
+    void Buffer::FlushMap(const data_range &range)
     {
         glFlushMappedNamedBufferRange(buffer_id, range.offset, range.length);
     }
 
-    void Buffer::invalidate()
+    void Buffer::Invalidate()
     {
         buffer_size = 0;
         buffer_storeflags = 0;
         glInvalidateBufferData(buffer_id);
     }
-    void Buffer::invalidate_sub(const data_range &range)
+    void Buffer::InvalidateSub(const data_range &range)
     {
         glInvalidateBufferSubData(buffer_id, range.offset, range.length);
     }
-
+    Buffer::operator GLuint()
+    {
+        return buffer_id;
+    }
     layout_element::layout_element(GLenum type, GLuint count, GLboolean normalize)
-        : type(type), size(count * static_cast<GLuint>(opengl_type_size(type)))
+        : type(type), size(count * static_cast<GLuint>(openglTypeSize(type)))
     {
         this->info = 0x00000000;
         if (normalize == GL_TRUE)
@@ -717,36 +777,36 @@ namespace Boundless
     }
     IndexBuffer::IndexBuffer(GLenum draw_type, GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags)
         : Buffer(GL_ELEMENT_ARRAY_BUFFER, size, flags, data), draw_type(draw_type), index_type(index_type),
-          index_count(size / opengl_type_size(index_type))
+          index_count(size / openglTypeSize(index_type))
     {
     }
     IndexBuffer::IndexBuffer(GLsizeiptr size, GLbitfield flags)
         : Buffer(GL_ELEMENT_ARRAY_BUFFER, size, flags)
     {
     }
-    void IndexBuffer::set_data(GLenum draw_type, GLenum index_type)
+    void IndexBuffer::SetData(GLenum draw_type, GLenum index_type)
     {
-        this->set_draw_type(draw_type);
-        this->set_data_type(index_type);
+        this->SetDrawType(draw_type);
+        this->SetDrawType(index_type);
     }
-    void IndexBuffer::set_draw_type(GLenum draw_type)
+    void IndexBuffer::SetDrawType(GLenum draw_type)
     {
         this->draw_type = draw_type;
     }
-    void IndexBuffer::set_data_type(GLenum index_type)
+    void IndexBuffer::SetDataType(GLenum index_type)
     {
         this->index_type = index_type;
-        this->index_count = this->buffer_size / opengl_type_size(index_type);
+        this->index_count = this->buffer_size / openglTypeSize(index_type);
     }
-    GLenum IndexBuffer::get_draw_type() const
+    GLenum IndexBuffer::GetDrawType() const
     {
         return this->draw_type;
     }
-    GLenum IndexBuffer::get_index_type() const
+    GLenum IndexBuffer::GetIndexType() const
     {
         return this->index_type;
     }
-    GLsizei IndexBuffer::get_index_count() const
+    GLsizei IndexBuffer::GetIndexCount() const
     {
         return this->index_count;
     }
@@ -778,13 +838,49 @@ namespace Boundless
     {
         return this->buffer_id;
     }
-    GLsizei VertexBuffer::get_size() const
+    GLsizei VertexBuffer::GetSize() const
     {
         return this->vertex_size;
     }
-    const std::vector<layout_element> &VertexBuffer::get_layout() const
+    const std::vector<layout_element> &VertexBuffer::GetLayout() const
     {
         return this->vertex_layout;
+    }
+
+    UniformBuffer::UniformBuffer()
+        : Buffer(GL_UNIFORM_BUFFER)
+    {
+    }
+    UniformBuffer::UniformBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags)
+        : Buffer(GL_UNIFORM_BUFFER, size, flags, data)
+    {
+    }
+    UniformBuffer::UniformBuffer(GLsizeiptr size, GLbitfield flags)
+        : Buffer(GL_UNIFORM_BUFFER, size, flags)
+    {
+    }
+    void UniformBuffer::BindTo(GLuint index)
+    {
+        binding = index;
+        glBindBufferBase(GL_UNIFORM_BUFFER,index,buffer_id);
+    }
+
+    ShaderStorageBuffer::ShaderStorageBuffer()
+        : Buffer(GL_SHADER_STORAGE_BUFFER)
+    {
+    }
+    ShaderStorageBuffer::ShaderStorageBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags)
+        : Buffer(GL_SHADER_STORAGE_BUFFER, size, flags, data)
+    {
+    }
+    ShaderStorageBuffer::ShaderStorageBuffer(GLsizeiptr size, GLbitfield flags)
+        : Buffer(GL_SHADER_STORAGE_BUFFER, size, flags)
+    {
+    }
+    void ShaderStorageBuffer::BindTo(GLuint index)
+    {
+        binding = index;
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER,index,buffer_id);
     }
     VertexArray::VertexArray()
     {
@@ -792,26 +888,26 @@ namespace Boundless
         layout_index = 0;
     }
 
-    void VertexArray::use(VertexBuffer &target, const data_range &range, bool enable)
+    void VertexArray::Use(VertexBuffer &target, const data_range &range, bool enable)
     {
         size_t offset = 0;
         for (GLuint i = range.offset; i < range.offset + range.length; i++)
         {
-            const layout_element &val = target.get_layout()[i];
-            if ((val.is_normalised() == GL_FALSE) && opengl_is_integer(val.type))
+            const layout_element &val = target.GetLayout()[i];
+            if ((val.is_normalised() == GL_FALSE) && openglIsInteger(val.type))
             {
-                glVertexAttribIPointer(i, val.get_count(), val.type, target.get_size(),
+                glVertexAttribIPointer(i, val.get_count(), val.type, target.GetSize(),
                                        (const void *)offset);
             }
             else if (val.type == GL_DOUBLE)
             {
-                glVertexAttribLPointer(i, val.get_count(), val.type, target.get_size(),
+                glVertexAttribLPointer(i, val.get_count(), val.type, target.GetSize(),
                                        (const void *)offset);
             }
             else
             {
                 glVertexAttribPointer(i, val.get_count(), val.type, val.is_normalised(),
-                                      target.get_size(), (const void *)offset);
+                                      target.GetSize(), (const void *)offset);
             }
             if (enable)
             {
@@ -821,35 +917,35 @@ namespace Boundless
             offset += val.size;
         }
     }
-    void VertexArray::use_all(VertexBuffer &target, bool enable)
+    inline void VertexArray::UseAll(VertexBuffer &target, bool enable)
     {
-        this->use(target, {0, GLsizei(target.get_layout().size())}, enable);
+        this->Use(target, {0, GLsizei(target.GetLayout().size())}, enable);
     }
-    void VertexArray::enable(GLuint index)
+    void VertexArray::Enable(GLuint index)
     {
 #ifdef _DEBUG
         assert(index <= layout_index);
 #endif
         glEnableVertexAttribArray(index);
     }
-    void VertexArray::disable(GLuint index)
+    void VertexArray::Disable(GLuint index)
     {
 #ifdef _DEBUG
         assert(index <= layout_index);
 #endif
         glDisableVertexAttribArray(index);
     }
-    void VertexArray::bind() const
+    void VertexArray::Bind() const
     {
         glBindVertexArray(this->array_id);
     }
-    void VertexArray::unbind() const
+    void VertexArray::Unbind() const
     {
         glBindVertexArray(0);
     }
-    void VertexArray::set_static(GLuint index, const layout_element &val, const void *v)
+    void VertexArray::SetStatic(GLuint index, const layout_element &val, const void *v)
     {
-        if (opengl_is_integer(val.type))
+        if (openglIsInteger(val.type))
         {
             if ((val.is_normalised() == GL_FALSE))
             {
@@ -1089,6 +1185,14 @@ namespace Boundless
         }
         return;
     }
+    Shader::~Shader()
+    {
+        glDeleteShader(this->shader_id);
+    }
+    Shader::operator GLuint()
+    {
+        return this->shader_id;
+    }
     Program::Program(GLuint n)
     {
         if (n != 0)
@@ -1108,12 +1212,12 @@ namespace Boundless
     void Program::UseShader(Shader& t)
     {
         this->program_shader.push_back(t);
-        glAttachShader(this->program_id, (this->program_shader.back()).GetID());
+        glAttachShader(this->program_id, GLuint(this->program_shader.back()));
     }
     void Program::MoveShader(Shader&& t)
     {
         this->program_shader.push_back(std::forward<Shader>(t));
-        glAttachShader(this->program_id, (this->program_shader.back()).GetID());
+        glAttachShader(this->program_id, GLuint(this->program_shader.back()));
     }
     void Program::Use() const
     {
@@ -1123,6 +1227,7 @@ namespace Boundless
     {
         glUseProgram(0);
     }
+
     void Program::Link() const
     {
         glLinkProgram(this->program_id);
@@ -1174,56 +1279,76 @@ namespace Boundless
         }
     }
 #endif
-    void Program::use_uniformblock(const std::string& name, GLuint index)
+    void Program::SetUniformblockBinding(const std::string& name, GLuint index)
     {
         GLint location = GetUniformBlockLocation(name);
         if (location != -1)
             glUniformBlockBinding(this->program_id, location, index);
     }
+    GLint Program::GetUniformblockSize(const std::string& name, GLuint index)
+    {
+        GLint location = GetUniformBlockLocation(name),size;
+        if (location == -1) return;
+        glGetActiveUniformBlockiv(program_id,location,GL_UNIFORM_BLOCK_DATA_SIZE,&size);
+        return size;
+    }
+    void Program::SetUniformblock(const std::string& name, UniformBuffer& ubo)
+    {
+        GLint location = GetUniformBlockLocation(name);
+        if (location == -1) return;
+        ubo.Bind();
+        glBindBufferBase(GL_UNIFORM_BUFFER,location,GLuint(ubo));
+    }
+    void Program::SetUniformblock(const std::string& name, UniformBuffer& ubo, const data_range& range)
+    {
+        GLint location = GetUniformBlockLocation(name);
+        if (location == -1) return;
+        glBindBufferRange(GL_UNIFORM_BUFFER,location,GLuint(ubo),range.offset,range.length);
+    }
     //设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
-    void Program::set_texture(const std::string& name, GLint unit)
+    void Program::SetTexture(const std::string& name, GLint unit)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1i(location, unit);
     }
     //设置布尔值
-    void Program::set_bool(const std::string& name, GLboolean value)
+    void Program::SetBool(const std::string& name, GLboolean value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1i(location, (int)value);
     }
     //设置int
-    void Program::set_int(const std::string& name, GLint value)
+    void Program::SetInt(const std::string& name, GLint value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1i(location, value);
     }
     //设置uint
-    void Program::set_uint(const std::string& name, GLuint value)
+    void Program::SetUint(const std::string& name, GLuint value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1ui(location, value);
     }
     //设置浮点数
-    void Program::set_float(const std::string& name, GLfloat value)
+    void Program::SetFloat(const std::string& name, GLfloat value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1f(location, value);
     }
     //设置二维向量（float）
-    void Program::set_vec2(const std::string& name, const glm::vec2& value)
+    void Program::SetVec2(const std::string& name, const glm::vec2& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2fv(location, 1, &value [0]);
     }
     //设置二维向量（float）
-    void Program::set_vec2(const std::string& name, GLfloat x, GLfloat y)
+    void Program::SetVec2(const std::string& name, GLfloat x, GLfloat y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1231,14 +1356,14 @@ namespace Boundless
     }
 
     //设置三维向量（float）
-    void Program::set_vec3(const std::string& name, const glm::vec3& value)
+    void Program::SetVec3(const std::string& name, const glm::vec3& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3fv(location, 1, &value [0]);
     }
     //设置三维向量（float）
-    void Program::set_vec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z)
+    void Program::SetVec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1246,14 +1371,14 @@ namespace Boundless
     }
 
     //设置四维向量（float）
-    void Program::set_vec4(const std::string& name, const glm::vec4& value)
+    void Program::SetVec4(const std::string& name, const glm::vec4& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4fv(location, 1, &value [0]);
     }
     //设置四维向量（float）
-    void Program::set_vec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+    void Program::SetVec4(const std::string& name, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1261,42 +1386,42 @@ namespace Boundless
     }
 
     //设置2*2矩阵（float）
-    void Program::set_mat2(const std::string& name, const glm::mat2& mat)
+    void Program::SetMat2(const std::string& name, const glm::mat2& mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniformMatrix2fv(location, 1, GL_FALSE, &mat [0][0]);
     }
     //设置3*3矩阵（float）
-    void Program::set_mat3(const std::string& name, const glm::mat3& mat)
+    void Program::SetMat3(const std::string& name, const glm::mat3& mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniformMatrix3fv(location, 1, GL_FALSE, &mat [0][0]);
     }
     //设置4*4矩阵（float）
-    void Program::set_mat4(const std::string& name, const glm::mat4& mat)
+    void Program::SetMat4(const std::string& name, const glm::mat4& mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniformMatrix4fv(location, 1, GL_FALSE, &mat [0][0]);
     }
     //设置双精度浮点数
-    void Program::set_double(const std::string& name, GLdouble value)
+    void Program::SetDouble(const std::string& name, GLdouble value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform1d(location, value);
     }
     //设置二维向量（double）
-    void Program::set_vec2(const std::string& name, const glm::dvec2& value)
+    void Program::SetVec2(const std::string& name, const glm::dvec2& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2dv(location, 1, &value [0]);
     }
     //设置二维向量（double）
-    void Program::set_vec2(const std::string& name, GLdouble x, GLdouble y)
+    void Program::SetVec2(const std::string& name, GLdouble x, GLdouble y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1304,14 +1429,14 @@ namespace Boundless
     }
 
     //设置三维向量（double）
-    void Program::set_vec3(const std::string& name, const glm::dvec3& value)
+    void Program::SetVec3(const std::string& name, const glm::dvec3& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3dv(location, 1, &value [0]);
     }
     //设置三维向量（double）
-    void Program::set_vec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z)
+    void Program::SetVec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1319,14 +1444,14 @@ namespace Boundless
     }
 
     //设置四维向量（double）
-    void Program::set_vec4(const std::string& name, const glm::dvec4& value)
+    void Program::SetVec4(const std::string& name, const glm::dvec4& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4dv(location, 1, &value [0]);
     }
     //设置四维向量（double）
-    void Program::set_vec4(const std::string& name, GLdouble x, GLdouble y, GLdouble z, GLdouble w)
+    void Program::SetVec4(const std::string& name, GLdouble x, GLdouble y, GLdouble z, GLdouble w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1334,21 +1459,21 @@ namespace Boundless
     }
 
     //设置2*2矩阵（double）
-    void Program::set_mat2(const std::string& name, const glm::dmat2& mat)
+    void Program::SetMat2(const std::string& name, const glm::dmat2& mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniformMatrix2dv(location, 1, GL_FALSE, &mat [0][0]);
     }
     //设置3*3矩阵（double）
-    void Program::set_mat3(const std::string& name, const glm::dmat3& mat)
+    void Program::SetMat3(const std::string& name, const glm::dmat3& mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniformMatrix3dv(location, 1, GL_FALSE, &mat [0][0]);
     }
     //设置4*4矩阵（double）
-    void Program::set_mat4(const std::string& name, const glm::dmat4& mat)
+    void Program::SetMat4(const std::string& name, const glm::dmat4& mat)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1356,14 +1481,14 @@ namespace Boundless
     }
 
     //设置二维向量（int）
-    void Program::set_vec2(const std::string& name, const glm::ivec2& value)
+    void Program::SetVec2(const std::string& name, const glm::ivec2& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2iv(location, 1, &value [0]);
     }
     //设置二维向量（int）
-    void Program::set_vec2(const std::string& name, GLint x, GLint y)
+    void Program::SetVec2(const std::string& name, GLint x, GLint y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1371,14 +1496,14 @@ namespace Boundless
     }
 
     //设置三维向量（int）
-    void Program::set_vec3(const std::string& name, const glm::ivec3& value)
+    void Program::SetVec3(const std::string& name, const glm::ivec3& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3iv(location, 1, &value [0]);
     }
     //设置三维向量（int）
-    void Program::set_vec3(const std::string& name, GLint x, GLint y, GLint z)
+    void Program::SetVec3(const std::string& name, GLint x, GLint y, GLint z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1386,28 +1511,28 @@ namespace Boundless
     }
 
     //设置四维向量（int）
-    void Program::set_vec4(const std::string& name, const glm::ivec4& value)
+    void Program::SetVec4(const std::string& name, const glm::ivec4& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4iv(location, 1, &value [0]);
     }
     //设置四维向量（int）
-    void Program::set_vec4(const std::string& name, GLint x, GLint y, GLint z, GLint w)
+    void Program::SetVec4(const std::string& name, GLint x, GLint y, GLint z, GLint w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4i(location, x, y, z, w);
     }
     //设置二维向量（uint32_t）
-    void Program::set_vec2(const std::string& name, const glm::uvec2& value)
+    void Program::SetVec2(const std::string& name, const glm::uvec2& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform2uiv(location, 1, &value [0]);
     }
     //设置二维向量（uint32_t）
-    void Program::set_vec2(const std::string& name, GLuint x, GLuint y)
+    void Program::SetVec2(const std::string& name, GLuint x, GLuint y)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1415,14 +1540,14 @@ namespace Boundless
     }
 
     //设置三维向量（uint32_t）
-    void Program::set_vec3(const std::string& name, const glm::uvec3& value)
+    void Program::SetVec3(const std::string& name, const glm::uvec3& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform3uiv(location, 1, &value [0]);
     }
     //设置三维向量（uint32_t）
-    void Program::set_vec3(const std::string& name, GLuint x, GLuint y, GLuint z)
+    void Program::SetVec3(const std::string& name, GLuint x, GLuint y, GLuint z)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
@@ -1430,14 +1555,14 @@ namespace Boundless
     }
 
     //设置四维向量（uint32_t）
-    void Program::set_vec4(const std::string& name, const glm::uvec4& value)
+    void Program::SetVec4(const std::string& name, const glm::uvec4& value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
             glUniform4uiv(location, 1, &value [0]);
     }
     //设置四维向量（uint32_t）
-    void Program::set_vec4(const std::string& name, GLuint x, GLuint y, GLuint z, GLuint w)
+    void Program::SetVec4(const std::string& name, GLuint x, GLuint y, GLuint z, GLuint w)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
