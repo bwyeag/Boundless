@@ -2,10 +2,10 @@
 CXX = g++
 
 # 定义编译器选项
-CXXFLAGS:= -std=c++20 -Wall -Wextra -g 2> errorout.txt
+CXXFLAGS:= -std=c++20 -Wall -Wextra -g 2> errorout.txt -fopenmp
 
 # 定义附加库选项
-LFLAGS   =
+LFLAGS   = 
 
 # 定义输出目录
 OUTPUT	:= ./

@@ -6,8 +6,8 @@
  */
 #ifndef _BOUNDLESS_GL_RENDER_HPP_FILE_
 #define _BOUNDLESS_GL_RENDER_HPP_FILE_
-#include "includes/glad/glad.h"
-#include "includes/GLFW/glfw3.h"
+#include "glad/glad.h"
+#include "GLFW/glfw3.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"

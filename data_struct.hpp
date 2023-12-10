@@ -6,6 +6,9 @@
  */
 #ifndef _BOUNDLESS_DATA_STRUCT_HPP_FILE_
 #define _BOUNDLESS_DATA_STRUCT_HPP_FILE_
+#include <omp.h>
+#include "glad/glad.h"
+
 #include <cstdint>
 #include <cstddef>
 
@@ -26,18 +29,15 @@
 namespace Boundless
 {
     typedef float(*Math_F2)(float,float);
-    enum index_type
-    {
-        INDEX_UINT16 = 0,INDEX_UINT32=1
-    };
     struct ptr_pack
     {
-        size_t ver,ind;
-        float* vertex_position;
-        void* index;
-        index_type type;
+        size_t vertex_size;
+        size_t index_size;
+        float* vertex_ptr;
+        void* index_ptr;
+        GLenum index_type;
         uint32_t restart_index;
-        int count;
+        GLsizeiptr index_count;
     };
     void MakeSurfaceRectangle(uint32_t x,uint32_t y,Math_F2,ptr_pack*);
 
@@ -53,7 +53,6 @@ namespace Boundless
                 Type obj;
             } data[blockSize];
         };
-
         std::vector<obj_block*> blockPointers;
         Type* nullobjRoot;
         Type* nullobjBack;
