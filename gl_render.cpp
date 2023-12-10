@@ -643,7 +643,7 @@ namespace Boundless
         this->buffer_target = tar;
     }
 
-    void Buffer::StoreData(GLsizeiptr size, GLbitfield flags, const void *data = nullptr)
+    void Buffer::StoreData(GLsizeiptr size, GLbitfield flags, const void *data)
     {
         buffer_size = size;
         buffer_storeflags = flags;
@@ -708,7 +708,7 @@ namespace Boundless
     {
         return buffer_id;
     }
-    layout_element::layout_element(GLenum type, GLuint count, GLboolean normalize)
+    layout_format::layout_format(GLenum type, GLuint count, GLboolean normalize)
         : type(type), size(count * static_cast<GLuint>(openglTypeSize(type)))
     {
         this->info = 0x00000000;
@@ -718,7 +718,7 @@ namespace Boundless
         }
         this->info |= static_cast<GLubyte>(count);
     }
-    layout_element &layout_element::operator=(layout_element &target)
+    layout_format &layout_format::operator=(layout_format &target)
     {
         if (&target == this)
         {
@@ -729,7 +729,7 @@ namespace Boundless
         info = target.info;
         return *this;
     }
-    layout_element &layout_element::operator=(layout_element &&target)
+    layout_format &layout_format::operator=(layout_format &&target)
     {
         if (&target == this)
         {
@@ -740,7 +740,7 @@ namespace Boundless
         info = target.info;
         return *this;
     }
-    void layout_element::set_count(GLuint count) const
+    void layout_format::set_count(GLuint count) const
     {
 #ifdef _DEBUG
         if (count > 0xFF)
@@ -752,15 +752,15 @@ namespace Boundless
         this->info |= static_cast<GLubyte>(count);
     }
 
-    GLuint layout_element::get_count() const
+    GLuint layout_format::get_count() const
     {
         return this->info & 0x000000FF;
     }
-    GLboolean layout_element::is_normalised() const
+    GLboolean layout_format::is_normalised() const
     {
         return (this->info & 0xFF000000) != 0;
     }
-    void layout_element::set_normalised(bool enable) const
+    void layout_format::set_normalised(bool enable) const
     {
         if (enable)
         {
@@ -770,6 +770,35 @@ namespace Boundless
         {
             this->info &= 0x00FFFFFF;
         }
+    }
+    GLboolean layout_format::is_enable() const
+    {
+        return (this->info & 0x0000FF00) != 0;
+    }
+    void layout_format::set_enable(bool enable) const
+    {
+        if (enable)
+        {
+            this->info |= 0x0000FF00;
+        }
+        else
+        {
+            this->info &= 0xFFFF00FF;
+        }
+    }
+    void layout_format::set_index(GLuint index) const
+    {
+#ifdef _DEBUG
+        if (index > 0xFF)
+        {
+            WARNING("INPUT","index过大")
+        } 
+#endif      
+        this->info |= (index << 16);
+    }
+    GLuint layout_format::get_index() const
+    {
+        return (this->info & 0x00FF0000) >> 16;
     }
     IndexBuffer::IndexBuffer()
         : Buffer(GL_ELEMENT_ARRAY_BUFFER)
@@ -828,7 +857,7 @@ namespace Boundless
         vertex_layout.reserve(reserve);
     }
 
-    VertexBuffer &VertexBuffer::operator<<(const layout_element &data)
+    VertexBuffer &VertexBuffer::operator<<(const layout_format &data)
     {
         this->vertex_size += data.size;
         this->vertex_layout.push_back(data);
@@ -842,7 +871,7 @@ namespace Boundless
     {
         return this->vertex_size;
     }
-    const std::vector<layout_element> &VertexBuffer::GetLayout() const
+    const std::vector<layout_format> &VertexBuffer::GetLayout() const
     {
         return this->vertex_layout;
     }
@@ -851,7 +880,7 @@ namespace Boundless
         : Buffer(GL_UNIFORM_BUFFER)
     {
     }
-    UniformBuffer::UniformBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags)
+    UniformBuffer::UniformBuffer(const void *data, GLsizeiptr size, GLbitfield flags)
         : Buffer(GL_UNIFORM_BUFFER, size, flags, data)
     {
     }
@@ -869,7 +898,7 @@ namespace Boundless
         : Buffer(GL_SHADER_STORAGE_BUFFER)
     {
     }
-    ShaderStorageBuffer::ShaderStorageBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags)
+    ShaderStorageBuffer::ShaderStorageBuffer(const void *data, GLsizeiptr size, GLbitfield flags)
         : Buffer(GL_SHADER_STORAGE_BUFFER, size, flags, data)
     {
     }
@@ -885,15 +914,14 @@ namespace Boundless
     VertexArray::VertexArray()
     {
         glCreateVertexArrays(1, &this->array_id);
-        layout_index = 0;
     }
 
-    void VertexArray::Use(VertexBuffer &target, const data_range &range, bool enable)
+    void VertexArray::Use(VertexBuffer &target, const data_range &range, bool enable, bool set)
     {
         size_t offset = 0;
         for (GLuint i = range.offset; i < range.offset + range.length; i++)
         {
-            const layout_element &val = target.GetLayout()[i];
+            const layout_format &val = target.GetLayout()[i];
             if ((val.is_normalised() == GL_FALSE) && openglIsInteger(val.type))
             {
                 glVertexAttribIPointer(i, val.get_count(), val.type, target.GetSize(),
@@ -909,6 +937,11 @@ namespace Boundless
                 glVertexAttribPointer(i, val.get_count(), val.type, val.is_normalised(),
                                       target.GetSize(), (const void *)offset);
             }
+            if (set)
+            {
+                val.set_index(layout_index);
+                val.set_enable(enable);
+            }
             if (enable)
             {
                 glEnableVertexAttribArray(this->layout_index);
@@ -917,33 +950,33 @@ namespace Boundless
             offset += val.size;
         }
     }
-    inline void VertexArray::UseAll(VertexBuffer &target, bool enable)
+    inline void VertexArray::UseAll(VertexBuffer &target, bool enable, bool set)
     {
-        this->Use(target, {0, GLsizei(target.GetLayout().size())}, enable);
+        this->Use(target, {0, GLsizei(target.GetLayout().size())}, enable,set);
     }
-    void VertexArray::Enable(GLuint index)
+    inline void VertexArray::Enable(GLuint index)
     {
 #ifdef _DEBUG
         assert(index <= layout_index);
 #endif
         glEnableVertexAttribArray(index);
     }
-    void VertexArray::Disable(GLuint index)
+    inline void VertexArray::Disable(GLuint index)
     {
 #ifdef _DEBUG
         assert(index <= layout_index);
 #endif
         glDisableVertexAttribArray(index);
     }
-    void VertexArray::Bind() const
+    inline void VertexArray::Bind() const
     {
         glBindVertexArray(this->array_id);
     }
-    void VertexArray::Unbind() const
+    inline void VertexArray::Unbind() const
     {
         glBindVertexArray(0);
     }
-    void VertexArray::SetStatic(GLuint index, const layout_element &val, const void *v)
+    void VertexArray::SetStatic(GLuint index, const layout_format &val, const void *v)
     {
         if (openglIsInteger(val.type))
         {
@@ -1184,8 +1217,39 @@ namespace Boundless
                 free(log);
             }
         }
-        return;
     }
+    Shader::Shader(const char *data, GLenum type)
+    {
+        this->shader_id = glCreateShader(type);
+        const GLint length = static_cast<GLint>(std::strlen(data));
+        glShaderSource(this->shader_id, 1, &data, &length);
+        glCompileShader(this->shader_id);
+
+        GLint success;
+        glGetShaderiv(this->shader_id, GL_COMPILE_STATUS, &success);
+        if (success == GL_FALSE)
+        {
+            int length;
+            glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &length);
+            ERROR("OpenGL", "着色器编译失败:\n着色器文件:")
+            ERRORINFO(data << "\n----------------------------------------")
+            char *log = (char *)malloc(sizeof(char) * length);
+            if (log == nullptr)
+            {
+                ERROR("Memory", "日志内存申请失败")
+                throw std::bad_alloc();
+            }
+            else
+            {
+                glGetShaderInfoLog(this->shader_id, length, &length, log);
+                ERROR("OpenGL", "错误信息：\n")
+                ERRORINFO("错误信息：\n"
+                          << log)
+                free(log);
+            }
+        }
+    }
+
     Shader::~Shader()
     {
         glDeleteShader(this->shader_id);
@@ -1286,11 +1350,11 @@ namespace Boundless
         if (location != -1)
             glUniformBlockBinding(this->program_id, location, index);
     }
-    GLint Program::GetUniformblockSize(const std::string &name, GLuint index)
+    GLint Program::GetUniformblockSize(const std::string &name)
     {
         GLint location = GetUniformBlockLocation(name), size;
         if (location == -1)
-            return;
+            return 0;
         glGetActiveUniformBlockiv(program_id, location, GL_UNIFORM_BLOCK_DATA_SIZE, &size);
         return size;
     }

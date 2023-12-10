@@ -9,6 +9,8 @@
 #include "includes/glad/glad.h"
 #include "includes/GLFW/glfw3.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -20,6 +22,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cstring>
 #include <list>
 #include <forward_list>
 #include <algorithm>
@@ -328,7 +331,7 @@ namespace Boundless
         operator GLuint();
     };
     /// @brief 用于存储顶点数组属性的类
-    class layout_element
+    class layout_format
     {
     public:
         /// @brief 属性数据类型
@@ -336,28 +339,33 @@ namespace Boundless
         /// @brief 数据长度
         GLsizei size;
         /// @brief 复合对象包含多个信息
-        /// @details 字节排序（高位）-8a-8-8-8d-（低位）a:是否归一化,
-        ///          d:数量(1,2,3,4)
+        /// @details 字节排序（高位）-8a-8b-8c-8d-（低位）a:是否归一化,
+        ///          b:使用的index[1-255],c:是否启用,d:数量(1,2,3,4)
         mutable GLuint info;
         /// @brief 无参构造，不进行任何初始化
-        layout_element() = default;
+        layout_format() = default;
         /// @brief 构造函数，初始化数据
         /// @param type 属性数据类型
         /// @param count 数量
         /// @param normalize 是否归一化到[-1,+1]或[0,1]（强制转换为float）
-        layout_element(GLenum type, GLuint count, GLboolean normalize);
+        layout_format(GLenum type, GLuint count, GLboolean normalize);
         /// @brief 移动构造函数（实际只是复制）
         /// @param target 移动目标
-        layout_element(layout_element &&target) noexcept = default;
+        layout_format(layout_format &&target) noexcept = default;
         /// @brief 复制构造函数
         /// @param target 复制目标
-        layout_element(const layout_element &target) = default;
-        layout_element &operator=(layout_element &target);
-        layout_element &operator=(layout_element &&target);
+        layout_format(const layout_format &target) = default;
+        layout_format &operator=(layout_format &target);
+        layout_format &operator=(layout_format &&target);
         void set_count(GLuint count) const;
         GLuint get_count() const;
         GLboolean is_normalised() const;
         void set_normalised(bool enable) const;
+
+        GLboolean is_enable() const;
+        void set_enable(bool enable) const;
+        void set_index(GLuint index) const;
+        GLuint get_index() const;
     };
     /// @brief 顶点索引类
     class IndexBuffer : public Buffer
@@ -394,7 +402,7 @@ namespace Boundless
 
     public:
         UniformBuffer();
-        UniformBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags);
+        UniformBuffer(const void *data, GLsizeiptr size, GLbitfield flags);
         UniformBuffer(GLsizeiptr size, GLbitfield flags);
         UniformBuffer(const UniformBuffer &target) = delete;
         UniformBuffer(UniformBuffer &&target) = default;
@@ -409,7 +417,7 @@ namespace Boundless
 
     public:
         ShaderStorageBuffer();
-        ShaderStorageBuffer(GLenum index_type, const void *data, GLsizeiptr size, GLbitfield flags);
+        ShaderStorageBuffer(const void *data, GLsizeiptr size, GLbitfield flags);
         ShaderStorageBuffer(GLsizeiptr size, GLbitfield flags);
         ShaderStorageBuffer(const ShaderStorageBuffer &target) = delete;
         ShaderStorageBuffer(ShaderStorageBuffer &&target) = default;
@@ -424,7 +432,7 @@ namespace Boundless
     {
     private:
         GLsizei vertex_size = 0;
-        std::vector<layout_element> vertex_layout;
+        std::vector<layout_format> vertex_layout;
 
     public:
         VertexBuffer(std::uint32_t reserve = DEAUFT_VERTEX_ELEMENT_RESERVE);
@@ -436,11 +444,11 @@ namespace Boundless
         VertexBuffer(VertexBuffer &&target) noexcept = default;
         VertexBuffer &operator=(const VertexBuffer &target) = delete;
         VertexBuffer &operator=(VertexBuffer &&target) noexcept = default;
-        VertexBuffer &operator<<(const layout_element &data);
+        VertexBuffer &operator<<(const layout_format &data);
         operator GLuint() const;
 
         GLsizei GetSize() const;
-        const std::vector<layout_element> &GetLayout() const;
+        const std::vector<layout_format> &GetLayout() const;
     };
 
     /// @brief 顶点数组类
@@ -450,7 +458,7 @@ namespace Boundless
         /// @brief 在OpenGL中的id
         GLuint array_id;
         /// @brief 当前最后一个未使用的顶点属性索引
-        GLuint layout_index;
+        GLuint layout_index = 0;
 
     public:
         /// @brief 仅创建VertexArray
@@ -464,9 +472,9 @@ namespace Boundless
         /// @brief 设置与VAO关联的VBO（当前绑定的VertexBuffer）的顶点属性（先绑定自身和VBO）
         /// @param target 设置顶点属性的目标
         /// @param range 顶点属性在VBO中的范围
-        void Use(VertexBuffer &target, const data_range &range, bool enable = false);
+        void Use(VertexBuffer &target, const data_range &range, bool enable = false, bool set = false);
         /// @brief 使用全部属性
-        void UseAll(VertexBuffer &target, bool enable = false);
+        void UseAll(VertexBuffer &target, bool enable = false, bool set = false);
         void Enable(GLuint index);
         void Disable(GLuint index);
         /// @brief 绑定VAO为当前VAO
@@ -477,7 +485,7 @@ namespace Boundless
         /// @param index 属性索引
         /// @param v 设置的值
         /// @param val 属性信息
-        void SetStatic(GLuint index, const layout_element &val, const void *v);
+        void SetStatic(GLuint index, const layout_format &val, const void *v);
     };
     //////////////////////////////////////////////////////////////////
     //  OpenGL 着色器类
@@ -491,9 +499,11 @@ namespace Boundless
 
     public:
         Shader(const std::string &path, GLenum type);
-        Shader(const Shader &) = delete;
+        Shader(const char *data, GLenum type);
+        // Warning:注意Shader的删除时机
+        Shader(const Shader &) = default;
         Shader(Shader &&) = default;
-        Shader &operator=(const Shader &) = delete;
+        Shader &operator=(const Shader &) = default;
         Shader &operator=(Shader &&) = default;
         ~Shader();
         operator GLuint();
@@ -528,7 +538,7 @@ namespace Boundless
         void Link() const;
         // to do:buffer块范围方法
         void SetUniformblockBinding(const std::string &name, GLuint index);
-        GLint GetUniformblockSize(const std::string &name, GLuint index);
+        GLint GetUniformblockSize(const std::string &name);
         void SetUniformblock(const std::string &name, UniformBuffer &ubo);
         void SetUniformblock(const std::string &name, UniformBuffer &ubo, const data_range &range);
         // 设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
@@ -643,22 +653,22 @@ namespace Boundless
     //  OpenGL 绘制类
     //  OpenGL Draw Classes
     //
-    class ArrayRender : public VertexArray
+
+    template<std::size_t count>
+    struct array_render_pack
     {
-    private:
+        VertexArray vao;
         Program* shader;
-    public:
-        ArrayRender(/* args */);
-        ~ArrayRender();
+        VertexBuffer vbos[count];
     };
-    class IndexRender : public VertexArray
+    
+    template<std::size_t count>
+    struct index_render_pack
     {
-    private:
-        GLuint restart_index = 0xFFFFFFFFU;
+        VertexArray vao;
         Program* shader;
-    public:
-        IndexRender(/* args */);
-        ~IndexRender();
+        IndexBuffer ibo;
+        VertexBuffer vbos[count];
     };
     
     //////////////////////////////////////////////////////////////////
@@ -690,5 +700,4 @@ namespace Boundless
         }
     };
 } // namespace Boundless
-
 #endif //!_BOUNDLESS_GL_RENDER_HPP_FILE_

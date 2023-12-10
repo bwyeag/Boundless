@@ -13,10 +13,10 @@ OUTPUT	:= ./
 # 定义源文件目录
 SRC		:= ./
 # 定义包含目录
-INCLUDE	:= ./include/
+INCLUDE	:= includes
 
 # 定义库目录
-LIB		:= ./libraries/
+LIB		:= libraries
 LIBRARIES := -lglad -lglfw3dll
 
 # 预定义宏
