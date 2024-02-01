@@ -699,5 +699,7 @@ namespace Boundless
             glBindTextureUnit(unit, 0);
         }
     };
+    
 } // namespace Boundless
+
 #endif //!_BOUNDLESS_GL_RENDER_HPP_FILE_
