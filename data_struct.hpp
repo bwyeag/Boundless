@@ -19,12 +19,12 @@
 #include <list>
 #include <algorithm>
 
-#define ERROR(type, info) std::cerr << "[ERROR][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl;
-#define ERRORINFO(info) std::cerr << "[ERROR]other:" << info << std::endl;
-#define WARNING(type, info) std::cerr << "[WARNING][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl;
-#define WARNINGINFO(info) std::cerr << "[WARNING]other:" << info << std::endl;
-#define INFO(type, info) std::cout << "[INFO][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl;
-#define INFODATA(info) std::cout << "[INFO]other:" << info << std::endl;
+#define ERROR(type, info) std::cerr << "[ERROR][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
+#define ERRORINFO(info) std::cerr << "[ERROR]other:" << info << std::endl
+#define WARNING(type, info) std::cerr << "[WARNING][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
+#define WARNINGINFO(info) std::cerr << "[WARNING]other:" << info << std::endl
+#define INFO(type, info) std::cout << "[INFO][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
+#define INFODATA(info) std::cout << "[INFO]other:" << info << std::endl
 
 namespace Boundless
 {
@@ -69,7 +69,7 @@ namespace Boundless
                 ptr = new obj_block();
                 if (ptr == nullptr)
                 {
-                    ERROR("MEMORY","内存耗尽!")
+                    ERROR("MEMORY","内存耗尽!");
                     exit(-1);
                 }
                 blockPointers[i] = ptr;
@@ -116,7 +116,7 @@ namespace Boundless
             obj_block* ptr = new obj_block();
             if (ptr == nullptr)
             {
-                ERROR("MEMORY","内存耗尽!")
+                ERROR("MEMORY","内存耗尽!");
             }
             blockPointers.push_back(ptr);
             std::sort(blockPointers.begin(),blockPointers.end(),std::greater<obj_block*>());

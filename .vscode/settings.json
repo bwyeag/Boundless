@@ -53,5 +53,7 @@
         "iomanip": "cpp",
         "sstream": "cpp",
         "cinttypes": "cpp"
-    }
+    },
+    "cmake.configureOnOpen": false,
+    "C_Cpp.errorSquiggles": "disabled"
 }
