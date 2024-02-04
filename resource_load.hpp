@@ -2,6 +2,9 @@
 #define _RESOURCE_LOAD_HPP_
 
 #include "glad/glad.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#include "zlib/zlib.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -12,8 +15,6 @@
 #include <fstream>
 #include <vector>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
 
 #define ERROR(type, info) std::cerr << "[ERROR][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
 #define ERRORINFO(info) std::cerr << "[ERROR]other:" << info << std::endl
@@ -31,10 +32,13 @@ namespace Boundless::Resource
     using std::ios;
     using std::vector;
 /*
-*   模型文件存储规范 2024/1/28
+*   模型文件存储规范 2024/2/4
 *   以.modelfile为后缀名
 *   (以下按文件顺序)(开头)
 *   8字节存储标志符: 0xF241282943FF0001
+*   8字节压缩文件原本长度
+*   (以下为余下部分解压缩后的内容)
+*   开头位置以解压缩后的开头起始
 *   顶点数据开头,顶点数据长度(各8Byte)
 *   索引数据开头(如果没有为UINT64_MAX),索引数据结尾(如果没有为0)(各8Byte)
 *   重启动索引(8Byte)(如果没有为UINT64_MAX-1)
@@ -53,7 +57,7 @@ namespace Boundless::Resource
         uint64_t start,length;
     };
 
-    typedef void (*ModelLoadFunction)(ModelLoader*, ModelHead*, BufferInfoData*);
+    typedef void (*ModelLoadFunction)(void*, ModelHead*, BufferInfoData*);
 
     class ModelLoader
     {
@@ -72,7 +76,7 @@ namespace Boundless::Resource
         ModelLoader& operator=(const ModelLoader&)=delete;
         ModelLoader& operator=(ModelLoader&&)=default;
 
-        void ReadFile(void* store_to, size_t start, size_t length);
+        void LoadFile(const char* path, ModelLoadFunction f);
         inline bool HasIndex() const {return has_index;};
     };
 
@@ -101,8 +105,15 @@ namespace Boundless::Resource
         TextureLoader(TextureLoader&&)=default;
         TextureLoader& operator=(const TextureLoader&)=delete;
         TextureLoader& operator=(TextureLoader&&)=default;
+
+        inline GLuint GetTexture() {return texture;}
+        void LoadFile(const char* path, TextureLoadFunction f);
     };
     
+    void GenerateInitialize();
+    void GenerateModelFile(const char* path);
+    void GenerateTextureFile2D(const char* path);
+
 } // namespace Boundless::Resource
 
 #endif //!_RESOURCE_LOAD_HPP_

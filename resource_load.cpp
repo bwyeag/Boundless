@@ -5,6 +5,10 @@ namespace Boundless::Resource
     //模型加载函数,将模型数据加载到OpenGL
     ModelLoader::ModelLoader(const char* path, ModelLoadFunction f)
     {
+        LoadFile(path,f);
+    }
+    void ModelLoader::LoadFile(const char* path, ModelLoadFunction f)
+    {
         model_file.open(path,ios::binary|ios::in);
         {
             if (!model_file.is_open())
@@ -20,8 +24,36 @@ namespace Boundless::Resource
                 exit(-1);
             }
         }
+
+        size_t tarlength;//读取压缩前大小
+        model_file.read((char*)&tarlength,sizeof(size_t));
+
+        size_t start,srclength;//读取压缩后文件长度
+        start=model_file.tellg();
+        model_file.seekg(ios::end);
+        srclength=model_file.tellg();
+        srclength=srclength-start;
+        model_file.seekg(start);
+
+        //分配解压缩所用的内存
+        void* src=malloc(srclength);
+        void* tar = malloc(tarlength);
+        if (src==nullptr||tar==nullptr)
+        {
+            ERROR("Memory","内存耗尽");
+            exit(-1);
+        }
+        model_file.read(src,srclength);//读取压缩前内容
+        int res = uncompress2(tar,&tarlength,src,srclength);//解压缩
+        free(src);
+        if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
+        {
+            ERROR("ZLIB","在解压时出现错误:"<<res);
+            exit(-1);
+        }
         ModelHead head_data;
-        model_file.read((char*)&head_data,sizeof(ModelHead));
+        memcpy(&head_data,tar,sizeof(ModelHead));//复制纹理头数据
+
         GLsizei bcnt = head_data.buffer_count;
         has_other_buffers=(bcnt==0)?false:true;
         if (head_data.index_start==UINT64_MAX)
@@ -36,24 +68,21 @@ namespace Boundless::Resource
         BufferInfoData bufferdata[head_data.buffer_count];
         if (head_data.buffer_count>0)
         {
-            model_file.seekg(sizeof(uint64_t)+sizeof(ModelHead));
-            model_file.read((char*)&bufferdata,head_data.buffer_count*sizeof(BufferInfoData));
+            memcpy(&bufferdata,tar+sizeof(ModelHead),head_data.buffer_count*sizeof(BufferInfoData));
         }
 
         if (f==nullptr)
         {
             glNamedBufferStorage(buffers[0],head_data.vertex_length,nullptr,GL_MAP_WRITE_BIT);
             char* wdata = (char*)glMapNamedBuffer(buffers[0],GL_WRITE_ONLY);
-            model_file.seekg(head_data.vertex_start);
-            model_file.read(wdata,head_data.vertex_length);
+            memcpy(wdata,tar+head_data.vertex_start,head_data.vertex_length);
             glUnmapNamedBuffer(buffers[0]);
 
             if (has_index)
             {
                 glNamedBufferStorage(buffers[1],head_data.index_length,nullptr,GL_MAP_WRITE_BIT);
                 char* wdata = (char*)glMapNamedBuffer(buffers[1],GL_WRITE_ONLY);
-                model_file.seekg(head_data.index_start);
-                model_file.read(wdata,head_data.index_length);
+                memcpy(wdata,tar+head_data.index_start,head_data.index_length);
                 glUnmapNamedBuffer(buffers[1]);
             }
 
@@ -62,25 +91,23 @@ namespace Boundless::Resource
             {
                 glNamedBufferStorage(bptr[i],bufferdata[i].length,nullptr,GL_MAP_WRITE_BIT);
                 char* wdata = (char*)glMapNamedBuffer(bptr[i],GL_WRITE_ONLY);
-                model_file.seekg(bufferdata[i].start);
-                model_file.read(wdata,bufferdata[i].length);
+                memcpy(wdata,tar+bufferdata[i].start,bufferdata[i].length);
                 glUnmapNamedBuffer(bptr[i]);
             }
             
         }
         else
         {
-            f(this,&head_data,bufferdata);
+            f(tar,&head_data,bufferdata);
         }
-    }
-
-    void ModelLoader::ReadFile(void* store_to, size_t start, size_t length)
-    {
-        model_file.seekg(start);
-        model_file.read((char*)store_to, length);
+        model_file.close();
     }
 
     TextureLoader::TextureLoader(const char* path, TextureLoadFunction f)
+    {
+        LoadFile(path,f);
+    }
+    void TextureLoader::LoadFile(const char* path, TextureLoadFunction f)
     {
         texture_file.open(path,ios::binary|ios::in);
         {
@@ -97,44 +124,109 @@ namespace Boundless::Resource
                 exit(-1);
             }
         }
-        texture_file.read((char*)&texture_info,sizeof(TextureHead));
-        glCreateTextures(texture_info.gl_target,1,&texture);
-        int count = 1+(texture_info.height==0)?0:1+(texture_info.depth==0)?0:1;
-        size_t start,length;
+        size_t tarlength;//读取压缩前大小
+        texture_file.read((char*)&tarlength,sizeof(size_t));
+
+        size_t start,srclength;//读取压缩后文件长度
         start=texture_file.tellg();
         texture_file.seekg(ios::end);
-        length=texture_file.tellg();
-        length=length-start;
-        void *tmp=malloc(length);
-        if (tmp==0)
+        srclength=texture_file.tellg();
+        srclength=srclength-start;
+        texture_file.seekg(start);
+
+        //分配解压缩所用的内存
+        void* src=malloc(srclength);
+        void* tar = malloc(tarlength);
+        if (src==nullptr||tar==nullptr)
         {
             ERROR("Memory","内存耗尽");
             exit(-1);
         }
-        texture_file.seekg(start);
-        texture_file.read(tmp,length);
-        switch (count)
+        texture_file.read(src,srclength);//读取压缩前内容
+        int res = uncompress2(tar,&tarlength,src,srclength);//解压缩
+        if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
+        {
+            ERROR("ZLIB","在解压时出现错误:"<<res);
+            exit(-1);
+        }
+        memcpy(&texture_info,tar,sizeof(TextureHead));//复制纹理头数据
+        glCreateTextures(texture_info.gl_target,1,&texture);
+        int count = 1+(texture_info.height==0)?0:1+(texture_info.depth==0)?0:1;
+        switch (count)//加载纹理数据
         {
         case 1:
             glTextureStorage1D(texture,texture_info.mipmap_level,texture_info.gl_internal_format,texture_info.width);
-            glTextureSubImage1D(texture,0,0,texture_info.width,texture_info.gl_format,texture_info.gl_type,tmp);
+            glTextureSubImage1D(texture,0,0,texture_info.width,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
             break;
         case 2:
             glTextureStorage2D(texture,texture_info.mipmap_level,texture_info.gl_internal_format,texture_info.width,texture_info.height);
-            glTextureSubImage2D(texture,0,0,0,texture_info.width,texture_info.height,texture_info.gl_format,texture_info.gl_type,tmp);
+            glTextureSubImage2D(texture,0,0,0,texture_info.width,texture_info.height,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
             break;
         case 3:
             glTextureStorage2D(texture,texture_info.mipmap_level,texture_info.gl_internal_format,texture_info.width,texture_info.height,texture_info.depth);
-            glTextureSubImage3D(texture,0,0,0,0,texture_info.width,texture_info.height,texture_info.depth,texture_info.gl_format,texture_info.gl_type,tmp);
+            glTextureSubImage3D(texture,0,0,0,0,texture_info.width,texture_info.height,texture_info.depth,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
             break;
         default:
             ERROR("Resource","无法识别的纹理长宽高格式:"<<count);
             exit(-1);
+            break;
         }
-        if (f!=nullptr)
+        free(src);free(tar);
+        if (f!=nullptr)//允许进行额外处理
         {
             f(this,texture,&texture_info);
         }
+        texture_file.close();
+    }
+
+    void GenerateInitialize()
+    {
+        stbi_set_flip_vertically_on_load(true);
+    }
+    void GenerateModelFile(const char* path)
+    {
         
     }
+    void GenerateTextureFile2D(const char* path)
+    {
+        TextureHead th;
+        th.gl_target=GL_TEXTURE_2D;
+        th.gl_type=GL_UNSIGNED_BYTE;
+        th.depth=0;
+        int n;
+        uint8_t data = stbi_load(path, th.width,th.height,&n,0);
+        if (data==nullptr)
+        {
+            ERROR("STB_IMAGE","加载图像失败");
+            exit(-1);
+        }
+        switch (n)
+        {
+        case 1:
+            th.gl_format=GL_ALPHA;
+            break;
+        case 2:
+            th.gl_format=GL_RG;
+            break;
+        case 3:
+            th.gl_format=GL_RGB;
+            break;
+        case 4:
+            th.gl_format=GL_RGBA;
+            break;
+        default:
+            ERROR("Resource","图像通道数错误:"<<n);
+            break;
+        }
+        th.gl_internal_format=th.gl_format;
+        size_t len = strlen(path);
+        char p[len+5];
+        strcpy(p,path);
+        strcpy(p+len,".tex");
+        ofstream file;
+        file.open(p,ios::binary|ios::out|ios::trunc);
+        uint64_t head = TEXTURE_HEADER;
+        //----------todo----------
+    }
+
 } // namespace Boundless::Resource
