@@ -15,13 +15,7 @@
 #include <fstream>
 #include <vector>
 
-
-#define ERROR(type, info) std::cerr << "[ERROR][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
-#define ERRORINFO(info) std::cerr << "[ERROR]other:" << info << std::endl
-#define WARNING(type, info) std::cerr << "[WARNING][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
-#define WARNINGINFO(info) std::cerr << "[WARNING]other:" << info << std::endl
-#define INFO(type, info) std::cout << "[INFO][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
-#define INFODATA(info) std::cout << "[INFO]other:" << info << std::endl
+#include "error_handle.hpp"
 
 namespace Boundless::Resource
 {
@@ -31,6 +25,8 @@ namespace Boundless::Resource
     using std::ofstream;
     using std::ios;
     using std::vector;
+
+    using Log;
 /*
 *   模型文件存储规范 2024/2/4
 *   以.modelfile为后缀名
@@ -81,7 +77,7 @@ namespace Boundless::Resource
     };
 
 #define TEXTURE_HEADER 0xF24241339FFF0002
-
+#define COMPRESS_LEVEL 6
     struct TextureHead
     {
         GLenum gl_target;

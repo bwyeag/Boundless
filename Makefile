@@ -17,7 +17,7 @@ INCLUDE	:= includes
 
 # 定义库目录
 LIB		:= libraries
-LIBRARIES := -lglad -lglfw3dll -lzlib
+LIBRARIES := -lglad -lglfw3dll -lzlib -lassimp
 
 # 预定义宏
 DEFINES = _DEBUG

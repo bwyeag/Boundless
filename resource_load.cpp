@@ -13,18 +13,18 @@ namespace Boundless::Resource
         {
             if (!model_file.is_open())
             {
-                ERROR("Resource","无法打开模型文件:"<<path);
-                exit(-1);
+                ERROR(RES_ERROR,RES_FILE_LOAD_ERROR<<path);
+                error_handle();
             }
             uint64_t head;
             model_file.read((char*)&head,sizeof(uint64_t));
             if (head!=MODEL_HEADER)
             {
-                ERROR("Resource","模型文件类型错误,文件头代码:"<<head);
-                exit(-1);
+                ERROR(RES_ERROR,RES_FILE_TYPE_ERROR<<head);
+                error_handle();
             }
         }
-
+        //tar<--src
         size_t tarlength;//读取压缩前大小
         model_file.read((char*)&tarlength,sizeof(size_t));
 
@@ -40,16 +40,16 @@ namespace Boundless::Resource
         void* tar = malloc(tarlength);
         if (src==nullptr||tar==nullptr)
         {
-            ERROR("Memory","内存耗尽");
-            exit(-1);
+            ERROR(MEMORY_ERROR,OUT_OF_MEMORY_ERROR);
+            error_handle();
         }
         model_file.read(src,srclength);//读取压缩前内容
         int res = uncompress2(tar,&tarlength,src,srclength);//解压缩
         free(src);
         if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
         {
-            ERROR("ZLIB","在解压时出现错误:"<<res);
-            exit(-1);
+            ERROR(LIB_ZLIB_ERROR,LIB_ZLIB_UNCOMPRESS_ERROR<<res);
+            error_handle();
         }
         ModelHead head_data;
         memcpy(&head_data,tar,sizeof(ModelHead));//复制纹理头数据
@@ -100,6 +100,7 @@ namespace Boundless::Resource
         {
             f(tar,&head_data,bufferdata);
         }
+        free(tar);
         model_file.close();
     }
 
@@ -113,15 +114,15 @@ namespace Boundless::Resource
         {
             if (!texture_file.is_open())
             {
-                ERROR("Resource","无法打开纹理文件:"<<path);
-                exit(-1);
+                ERROR(RES_ERROR,RES_FILE_LOAD_ERROR<<path);
+                error_handle();
             }
             uint64_t head;
             texture_file.read((char*)&head,sizeof(uint64_t));
             if (head!=TEXTURE_HEADER)
             {
-                ERROR("Resource","纹理文件类型错误,文件头代码:"<<head);
-                exit(-1);
+                ERROR(RES_ERROR,RES_FILE_TYPE_ERROR<<head);
+                error_handle();
             }
         }
         size_t tarlength;//读取压缩前大小
@@ -139,15 +140,15 @@ namespace Boundless::Resource
         void* tar = malloc(tarlength);
         if (src==nullptr||tar==nullptr)
         {
-            ERROR("Memory","内存耗尽");
-            exit(-1);
+            ERROR(MEMORY_ERROR,OUT_OF_MEMORY_ERROR);
+            error_handle();
         }
         texture_file.read(src,srclength);//读取压缩前内容
         int res = uncompress2(tar,&tarlength,src,srclength);//解压缩
         if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
         {
-            ERROR("ZLIB","在解压时出现错误:"<<res);
-            exit(-1);
+            ERROR(LIB_ZLIB_ERROR,LIB_ZLIB_UNCOMPRESS_ERROR<<res);
+            error_handle();
         }
         memcpy(&texture_info,tar,sizeof(TextureHead));//复制纹理头数据
         glCreateTextures(texture_info.gl_target,1,&texture);
@@ -167,8 +168,8 @@ namespace Boundless::Resource
             glTextureSubImage3D(texture,0,0,0,0,texture_info.width,texture_info.height,texture_info.depth,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
             break;
         default:
-            ERROR("Resource","无法识别的纹理长宽高格式:"<<count);
-            exit(-1);
+            ERROR(RES_ERROR,RES_TEXTURE_TYPE_ERROR<<count);
+            error_handle();
             break;
         }
         free(src);free(tar);
@@ -194,11 +195,12 @@ namespace Boundless::Resource
         th.gl_type=GL_UNSIGNED_BYTE;
         th.depth=0;
         int n;
-        uint8_t data = stbi_load(path, th.width,th.height,&n,0);
+        uint8_t* data = stbi_load(path, th.width,th.height,&n,0);
+        size_t data_length = th.width * th.height * n * sizeof(uint8_t);
         if (data==nullptr)
         {
-            ERROR("STB_IMAGE","加载图像失败");
-            exit(-1);
+            ERROR(LIB_STB_IMAGE_ERROR,LIB_STB_IMAGE_LOAD_ERROR);
+            error_handle();
         }
         switch (n)
         {
@@ -215,7 +217,8 @@ namespace Boundless::Resource
             th.gl_format=GL_RGBA;
             break;
         default:
-            ERROR("Resource","图像通道数错误:"<<n);
+            ERROR(RES_ERROR,RES_TEXTURE_CANNEL_ERROR<<n);
+            error_handle();
             break;
         }
         th.gl_internal_format=th.gl_format;
@@ -225,8 +228,32 @@ namespace Boundless::Resource
         strcpy(p+len,".tex");
         ofstream file;
         file.open(p,ios::binary|ios::out|ios::trunc);
+        if (!file.is_open())
+        {
+            ERROR(RES_ERROR,RES_CANNOT_CREATE_FILE_ERROR);
+            error_handle();
+        }
         uint64_t head = TEXTURE_HEADER;
-        //----------todo----------
+        file.write((char*)&head,sizeof(uint64_t));
+        file.seekp(sizeof(size_t),ios::cur);
+        head = compressBound(data_length);
+        void* tmp = malloc(head);
+        if (tmp==nullptr)
+        {
+            ERROR(MEMORY_ERROR,OUT_OF_MEMORY_ERROR);
+            error_handle();
+        }
+        int res = compress2(tmp, &head, data, data_length, COMPRESS_LEVEL);
+        if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
+        {
+            ERROR(LIB_ZLIB_ERROR,LIB_ZLIB_COMPRESS_ERROR<<res);
+            error_handle();       
+        }
+        file.write(tmp, head);
+        file.seekp(sizeof(uint64_t),ios::beg);
+        file.write(head);
+        free(tmp);
+        stbi_image_free(data);
     }
 
 } // namespace Boundless::Resource
