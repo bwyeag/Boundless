@@ -114,7 +114,7 @@ namespace Boundless::Resource
     
     void GenerateInitialize();
     void GenerateModelFile(const char* path);
-    void GenerateMeshFile(const aiNode*);
+    void GenerateMeshFile(const aiMesh* ptr, const string &path);
     void GenerateTextureFile2D(const char* path);
 
 } // namespace Boundless::Resource

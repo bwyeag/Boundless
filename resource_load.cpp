@@ -200,7 +200,7 @@ namespace Boundless::Resource
         string pstr = path;
         for (size_t i = 0; i < scene->mNumMeshes; i++)
         {
-            GenerateMeshFile(scene->mMeshes[i], pstr + scene->mMeshes[i]->mName + ".mesh");
+            GenerateMeshFile(scene->mMeshes[i], pstr + std::to_string(i) + scene->mMeshes[i]->mName.C_Str() + ".mesh");
         }
     }
     void GenerateMeshFile(const aiMesh *pointer, const string &path)
@@ -211,34 +211,46 @@ namespace Boundless::Resource
         mh.restart_index = UINT64_MAX - 1;
         mh.index_length = 0;
         size_t vertex_length = sizeof(aiVector3D); // 单个顶点数据的长度
+        cout << "File:" << path << '\t' << pointer->mName.C_Str() << '\n';
+        cout << "Vertex Format:\nPositions vec3";
         if (pointer->HasNormals())
         {
             vertex_length += sizeof(aiVector3D);
+            cout << "\nNormals vec3";
         }
-        if (pointer->HasTextureCoords())
+        if (pointer->GetNumUVChannels() > 0)
         {
+            cout << "\nTexture Coords:";
             for (size_t i = 0; i < pointer->GetNumUVChannels(); i++)
             {
-                vertex_length += sizeof(ai_real) * pointer->mNumUVComponents[i];
+                if (pointer->HasTextureCoords(i))
+                {
+                    vertex_length += sizeof(ai_real) * pointer->mNumUVComponents[i];
+                    cout << "\n\t" << (pointer->HasTextureCoordsName(i) ? pointer->mTextureCoordsNames[i]->C_Str() : "NULL") << ": vec" << pointer->mNumUVComponents[i];
+                }
             }
         }
-        if (pointer->HasVertexColors())
+        if (pointer->GetNumColorChannels() > 0)
         {
             vertex_length += sizeof(aiColor4D) * pointer->GetNumColorChannels();
+            cout << "\nColors: vec4 *" << pointer->GetNumColorChannels();
         }
         if (pointer->HasTangentsAndBitangents())
         {
             vertex_length += sizeof(aiVector3D) * 2;
+            cout << "\nTangents vec3\nBitangents vec3";
         }
         if (pointer->HasFaces())
         {
             mh.index_length = pointer->mNumFaces * sizeof(unsigned int) * 3;
+            cout << "\nFaces: triangles, unsigned int * 3";
         }
+        cout << endl;
         mh.vertex_length = vertex_length * pointer->mNumVertices;
         mh.index_start = sizeof(ModelHead) + mh.vertex_length;
         mh.vertex_start = sizeof(ModelHead);
 
-        void *mesh_data = malloc(mh.index_start + mh.index_length), *curpos = mesh_data;
+        uint8_t *mesh_data = (uint8_t *)malloc(mh.index_start + mh.index_length), *curpos = mesh_data;
         if (mesh_data == nullptr)
         {
             ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
@@ -255,17 +267,17 @@ namespace Boundless::Resource
                 *((aiVector3D *)curpos) = pointer->mNormals[i];
                 curpos += sizeof(aiVector3D);
             }
-            if (pointer->HasTextureCoords())
+            for (size_t j = 0; j < pointer->GetNumUVChannels(); j++)
             {
-                for (size_t j = 0; j < pointer->GetNumUVChannels(); j++)
+                if (pointer->HasTextureCoords(j))
                 {
                     *((aiVector3D *)curpos) = pointer->mTextureCoords[j][i];
                     curpos += sizeof(ai_real) * pointer->mNumUVComponents[j];
                 }
             }
-            if (pointer->HasVertexColors())
+            for (size_t j = 0; j < pointer->GetNumColorChannels(); j++)
             {
-                for (size_t j = 0; j < pointer->GetNumColorChannels(); j++)
+                if (pointer->HasVertexColors(j))
                 {
                     *((aiColor4D *)curpos) = pointer->mColors[j][i];
                     curpos += sizeof(aiColor4D);
@@ -304,11 +316,18 @@ namespace Boundless::Resource
             error_handle();
             return;
         }
+        uint64_t head = MODEL_HEADER;
         file.open(path, ios::binary | ios::out | ios::trunc);
         file.write((char *)&head, sizeof(uint64_t));
-        file.write((char*)compress_data, compress_size);
+        head = mh.index_start + mh.index_length;
+        file.write((char *)&head, sizeof(uint64_t));
+        file.write((char *)compress_data, compress_size);
         file.close();
         free(compress_data);
+        cout << "Vertices Count:" << pointer->mNumVertices << '\n';
+        cout << "Indices Count:" << pointer->mNumFaces * 3 << '\n';
+        cout << "Data size:" << head << "Bytes\n";
+        cout << "END;" << endl;
     }
     void GenerateTextureFile2D(const char *path)
     {
@@ -320,12 +339,13 @@ namespace Boundless::Resource
         uint8_t *data = stbi_load(path, &th.width, &th.height, &n, 0);
         if (data == nullptr)
         {
-            ERROR(LIB_STB_IMAGE_ERROR, LIB_STB_IMAGE_LOAD_ERROR);
+            ERROR(LIB_STB_IMAGE_ERROR, LIB_STB_IMAGE_LOAD_ERROR<<path);
             error_handle();
             return;
         }
         size_t data_length = th.width * th.height * n * sizeof(uint8_t);
-        cout << "size:\t" << data_length << "Bytes\n";
+        cout << "File:\t" << path;
+        cout << "Image Data Size:\t" << data_length << "Bytes\n";
 
         switch (n)
         {
@@ -346,7 +366,7 @@ namespace Boundless::Resource
             error_handle();
             return;
         }
-        cout << "cannels:\t" << th.gl_format << '\n';
+        cout << "Image Cannels:\t" << th.gl_format << '\n';
         size_t len = strlen(path);
         char p[len + 10];
         strcpy(p, path);
@@ -379,8 +399,8 @@ namespace Boundless::Resource
         stbi_image_free(data);
 
         int res = compress2((Bytef *)compressdata, (uLongf *)&head, (Bytef *)before, (uLong)(data_length + sizeof(TextureHead)), COMPRESS_LEVEL); // head用作实际压缩后大小
-        cout << "before compress:" << data_length + sizeof(TextureHead) << '\n';
-        cout << "compress size:\t" << head << endl;
+        cout << "Before Compress Size:\t" << data_length + sizeof(TextureHead) << '\n';
+        cout << "After Compress Size:\t" << head << endl;
         free(before);
         if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
         {
@@ -397,6 +417,7 @@ namespace Boundless::Resource
         file.write((char *)&head, sizeof(uint64_t)); // 写入压缩前大小
         free(compressdata);
         file.close();
+        cout << "END;" << endl;
     }
 
 } // namespace Boundless::Resource
