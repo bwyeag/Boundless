@@ -1,26 +1,15 @@
-#include "gl_render.hpp"
+#include "resource_load.hpp"
+#include <string>
+#include <iostream>
 
-using namespace Boundless;
+using namespace Boundless::Resource;
 int main()
 {
-	system("chcp 65001");
-#ifdef _DEBUG
-	std::cout << "<DEBUG>" << std::endl;
-#endif
-	if (!opengl_init())
-	{
-		exit(EXIT_FAILURE);
-	}
-
-	while (!glfwWindowShouldClose(window_ptr))
-	{
-
-		glfwSwapBuffers(window_ptr);
-		glfwPollEvents();
-	}
-
-    glfwDestroyWindow(window_ptr);
-	glfwTerminate();
-	system("pause");
-	exit(EXIT_SUCCESS);
+	std::string path;
+	std::cout << "Enter file path:";
+	std::cin>>path;
+	GenerateInitialize();
+	GenerateTextureFile2D(path.c_str());
+	std::cout<<"Finish.";
+	std::cin.get();
 }

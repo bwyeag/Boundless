@@ -1,181 +1,184 @@
 #include "resource_load.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 namespace Boundless::Resource
 {
-    //模型加载函数,将模型数据加载到OpenGL
-    ModelLoader::ModelLoader(const char* path, ModelLoadFunction f)
+    // 模型加载函数,将模型数据加载到OpenGL
+    ModelLoader::ModelLoader(const char *path, ModelLoadFunction f)
     {
-        LoadFile(path,f);
+        LoadFile(path, f);
     }
-    void ModelLoader::LoadFile(const char* path, ModelLoadFunction f)
+    void ModelLoader::LoadFile(const char *path, ModelLoadFunction f)
     {
-        model_file.open(path,ios::binary|ios::in);
+        model_file.open(path, ios::binary | ios::in);
         {
             if (!model_file.is_open())
             {
-                ERROR(RES_ERROR,RES_FILE_LOAD_ERROR<<path);
+                ERROR(RES_ERROR, RES_FILE_LOAD_ERROR << path);
                 error_handle();
             }
             uint64_t head;
-            model_file.read((char*)&head,sizeof(uint64_t));
-            if (head!=MODEL_HEADER)
+            model_file.read((char *)&head, sizeof(uint64_t));
+            if (head != MODEL_HEADER)
             {
-                ERROR(RES_ERROR,RES_FILE_TYPE_ERROR<<head);
+                ERROR(RES_ERROR, RES_FILE_TYPE_ERROR << head);
                 error_handle();
             }
         }
-        //tar<--src
-        size_t tarlength;//读取压缩前大小
-        model_file.read((char*)&tarlength,sizeof(size_t));
+        // tar<--src
+        size_t tarlength; // 读取压缩前大小
+        model_file.read((char *)&tarlength, sizeof(size_t));
 
-        size_t start,srclength;//读取压缩后文件长度
-        start=model_file.tellg();
+        size_t start, srclength; // 读取压缩后文件长度
+        start = model_file.tellg();
         model_file.seekg(ios::end);
-        srclength=model_file.tellg();
-        srclength=srclength-start;
+        srclength = model_file.tellg();
+        srclength = srclength - start;
         model_file.seekg(start);
 
-        //分配解压缩所用的内存
-        void* src=malloc(srclength);
-        void* tar = malloc(tarlength);
-        if (src==nullptr||tar==nullptr)
+        // 分配解压缩所用的内存
+        void *src = malloc(srclength);
+        void *tar = malloc(tarlength);
+        if (src == nullptr || tar == nullptr)
         {
-            ERROR(MEMORY_ERROR,OUT_OF_MEMORY_ERROR);
+            ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
         }
-        model_file.read(src,srclength);//读取压缩前内容
-        int res = uncompress2(tar,&tarlength,src,srclength);//解压缩
+        model_file.read((char *)src, srclength);                                                     // 读取压缩前内容
+        int res = uncompress2((Bytef *)tar, (uLongf *)&tarlength, (Bytef *)src, (uLong *)srclength); // 解压缩
         free(src);
-        if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
+        if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
         {
-            ERROR(LIB_ZLIB_ERROR,LIB_ZLIB_UNCOMPRESS_ERROR<<res);
+            ERROR(LIB_ZLIB_ERROR, LIB_ZLIB_UNCOMPRESS_ERROR << res);
             error_handle();
         }
         ModelHead head_data;
-        memcpy(&head_data,tar,sizeof(ModelHead));//复制纹理头数据
+        memcpy(&head_data, tar, sizeof(ModelHead)); // 复制纹理头数据
 
         GLsizei bcnt = head_data.buffer_count;
-        has_other_buffers=(bcnt==0)?false:true;
-        if (head_data.index_start==UINT64_MAX)
-            has_index=false,bcnt+=1;
+        has_other_buffers = (bcnt == 0) ? false : true;
+        if (head_data.index_start == UINT64_MAX)
+            has_index = false, bcnt += 1;
         else
-            has_index=true,bcnt+=2;
-        restart_index=head_data.restart_index;
+            has_index = true, bcnt += 2;
+        restart_index = head_data.restart_index;
 
         buffers.resize(bcnt);
-        glCreateBuffers(bcnt,&buffers[0]);
+        glCreateBuffers(bcnt, &buffers[0]);
 
         BufferInfoData bufferdata[head_data.buffer_count];
-        if (head_data.buffer_count>0)
+        if (head_data.buffer_count > 0)
         {
-            memcpy(&bufferdata,tar+sizeof(ModelHead),head_data.buffer_count*sizeof(BufferInfoData));
+            memcpy(&bufferdata, (uint8_t *)tar + sizeof(ModelHead), head_data.buffer_count * sizeof(BufferInfoData));
         }
 
-        if (f==nullptr)
+        if (f == nullptr)
         {
-            glNamedBufferStorage(buffers[0],head_data.vertex_length,nullptr,GL_MAP_WRITE_BIT);
-            char* wdata = (char*)glMapNamedBuffer(buffers[0],GL_WRITE_ONLY);
-            memcpy(wdata,tar+head_data.vertex_start,head_data.vertex_length);
+            glNamedBufferStorage(buffers[0], head_data.vertex_length, nullptr, GL_MAP_WRITE_BIT);
+            char *wdata = (char *)glMapNamedBuffer(buffers[0], GL_WRITE_ONLY);
+            memcpy(wdata, (uint8_t *)tar + head_data.vertex_start, head_data.vertex_length);
             glUnmapNamedBuffer(buffers[0]);
 
             if (has_index)
             {
-                glNamedBufferStorage(buffers[1],head_data.index_length,nullptr,GL_MAP_WRITE_BIT);
-                char* wdata = (char*)glMapNamedBuffer(buffers[1],GL_WRITE_ONLY);
-                memcpy(wdata,tar+head_data.index_start,head_data.index_length);
+                glNamedBufferStorage(buffers[1], head_data.index_length, nullptr, GL_MAP_WRITE_BIT);
+                char *wdata = (char *)glMapNamedBuffer(buffers[1], GL_WRITE_ONLY);
+                memcpy(wdata, (uint8_t *)tar + head_data.index_start, head_data.index_length);
                 glUnmapNamedBuffer(buffers[1]);
             }
 
-            GLuint* bptr=&buffers[has_index?2:1];
+            GLuint *bptr = &buffers[has_index ? 2 : 1];
             for (uint32_t i = 0; i < head_data.buffer_count; i++)
             {
-                glNamedBufferStorage(bptr[i],bufferdata[i].length,nullptr,GL_MAP_WRITE_BIT);
-                char* wdata = (char*)glMapNamedBuffer(bptr[i],GL_WRITE_ONLY);
-                memcpy(wdata,tar+bufferdata[i].start,bufferdata[i].length);
+                glNamedBufferStorage(bptr[i], bufferdata[i].length, nullptr, GL_MAP_WRITE_BIT);
+                char *wdata = (char *)glMapNamedBuffer(bptr[i], GL_WRITE_ONLY);
+                memcpy(wdata, (uint8_t *)tar + bufferdata[i].start, bufferdata[i].length);
                 glUnmapNamedBuffer(bptr[i]);
             }
-            
         }
         else
         {
-            f(tar,&head_data,bufferdata);
+            f(tar, &head_data, bufferdata);
         }
         free(tar);
         model_file.close();
     }
 
-    TextureLoader::TextureLoader(const char* path, TextureLoadFunction f)
+    TextureLoader::TextureLoader(const char *path, TextureLoadFunction f)
     {
-        LoadFile(path,f);
+        LoadFile(path, f);
     }
-    void TextureLoader::LoadFile(const char* path, TextureLoadFunction f)
+    void TextureLoader::LoadFile(const char *path, TextureLoadFunction f)
     {
-        texture_file.open(path,ios::binary|ios::in);
+        texture_file.open(path, ios::binary | ios::in);
         {
             if (!texture_file.is_open())
             {
-                ERROR(RES_ERROR,RES_FILE_LOAD_ERROR<<path);
+                ERROR(RES_ERROR, RES_FILE_LOAD_ERROR << path);
                 error_handle();
             }
             uint64_t head;
-            texture_file.read((char*)&head,sizeof(uint64_t));
-            if (head!=TEXTURE_HEADER)
+            texture_file.read((char *)&head, sizeof(uint64_t));
+            if (head != TEXTURE_HEADER)
             {
-                ERROR(RES_ERROR,RES_FILE_TYPE_ERROR<<head);
+                ERROR(RES_ERROR, RES_FILE_TYPE_ERROR << head);
                 error_handle();
             }
         }
-        size_t tarlength;//读取压缩前大小
-        texture_file.read((char*)&tarlength,sizeof(size_t));
+        size_t tarlength; // 读取压缩前大小
+        texture_file.read((char *)&tarlength, sizeof(size_t));
 
-        size_t start,srclength;//读取压缩后文件长度
-        start=texture_file.tellg();
+        size_t start, srclength; // 读取压缩后文件长度
+        start = texture_file.tellg();
         texture_file.seekg(ios::end);
-        srclength=texture_file.tellg();
-        srclength=srclength-start;
+        srclength = texture_file.tellg();
+        srclength = srclength - start;
         texture_file.seekg(start);
 
-        //分配解压缩所用的内存
-        void* src=malloc(srclength);
-        void* tar = malloc(tarlength);
-        if (src==nullptr||tar==nullptr)
+        // 分配解压缩所用的内存
+        void *src = malloc(srclength);
+        void *tar = malloc(tarlength);
+        if (src == nullptr || tar == nullptr)
         {
-            ERROR(MEMORY_ERROR,OUT_OF_MEMORY_ERROR);
+            ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
         }
-        texture_file.read(src,srclength);//读取压缩前内容
-        int res = uncompress2(tar,&tarlength,src,srclength);//解压缩
-        if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
+        texture_file.read((char *)src, srclength);                                                   // 读取压缩前内容
+        int res = uncompress2((Bytef *)tar, (uLongf *)&tarlength, (Bytef *)src, (uLong *)srclength); // 解压缩
+        if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
         {
-            ERROR(LIB_ZLIB_ERROR,LIB_ZLIB_UNCOMPRESS_ERROR<<res);
+            ERROR(LIB_ZLIB_ERROR, LIB_ZLIB_UNCOMPRESS_ERROR << res);
             error_handle();
         }
-        memcpy(&texture_info,tar,sizeof(TextureHead));//复制纹理头数据
-        glCreateTextures(texture_info.gl_target,1,&texture);
-        int count = 1+(texture_info.height==0)?0:1+(texture_info.depth==0)?0:1;
-        switch (count)//加载纹理数据
+        memcpy(&texture_info, tar, sizeof(TextureHead)); // 复制纹理头数据
+        glCreateTextures(texture_info.gl_target, 1, &texture);
+        int count = 1 + (texture_info.height == 0) ? 0 : 1 + (texture_info.depth == 0) ? 0
+                                                                                       : 1;
+        switch (count) // 加载纹理数据
         {
         case 1:
-            glTextureStorage1D(texture,texture_info.mipmap_level,texture_info.gl_internal_format,texture_info.width);
-            glTextureSubImage1D(texture,0,0,texture_info.width,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
+            glTextureStorage1D(texture, texture_info.mipmap_level, texture_info.gl_internal_format, texture_info.width);
+            glTextureSubImage1D(texture, 0, 0, texture_info.width, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
             break;
         case 2:
-            glTextureStorage2D(texture,texture_info.mipmap_level,texture_info.gl_internal_format,texture_info.width,texture_info.height);
-            glTextureSubImage2D(texture,0,0,0,texture_info.width,texture_info.height,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
+            glTextureStorage2D(texture, texture_info.mipmap_level, texture_info.gl_internal_format, texture_info.width, texture_info.height);
+            glTextureSubImage2D(texture, 0, 0, 0, texture_info.width, texture_info.height, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
             break;
         case 3:
-            glTextureStorage2D(texture,texture_info.mipmap_level,texture_info.gl_internal_format,texture_info.width,texture_info.height,texture_info.depth);
-            glTextureSubImage3D(texture,0,0,0,0,texture_info.width,texture_info.height,texture_info.depth,texture_info.gl_format,texture_info.gl_type,tar+sizeof(TextureHead));
+            glTextureStorage3D(texture, texture_info.mipmap_level, texture_info.gl_internal_format, texture_info.width, texture_info.height, texture_info.depth);
+            glTextureSubImage3D(texture, 0, 0, 0, 0, texture_info.width, texture_info.height, texture_info.depth, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
             break;
         default:
-            ERROR(RES_ERROR,RES_TEXTURE_TYPE_ERROR<<count);
+            ERROR(RES_ERROR, RES_TEXTURE_TYPE_ERROR << count);
             error_handle();
             break;
         }
-        free(src);free(tar);
-        if (f!=nullptr)//允许进行额外处理
+        free(src);
+        free(tar);
+        if (f != nullptr) // 允许进行额外处理
         {
-            f(this,texture,&texture_info);
+            f(texture, &texture_info);
         }
         texture_file.close();
     }
@@ -184,76 +187,216 @@ namespace Boundless::Resource
     {
         stbi_set_flip_vertically_on_load(true);
     }
-    void GenerateModelFile(const char* path)
+    void GenerateModelFile(const char *path)
     {
-        
+        Assimp::Importer importer;
+        const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+        {
+            ERROR(LIB_ASSMIP_ERROR, importer.GetErrorString());
+            error_handle();
+            return;
+        }
+        string pstr = path;
+        for (size_t i = 0; i < scene->mNumMeshes; i++)
+        {
+            GenerateMeshFile(scene->mMeshes[i], pstr + scene->mMeshes[i]->mName + ".mesh");
+        }
     }
-    void GenerateTextureFile2D(const char* path)
+    void GenerateMeshFile(const aiMesh *pointer, const string &path)
+    {
+        ofstream file;
+        ModelHead mh;
+        mh.buffer_count = 0;
+        mh.restart_index = UINT64_MAX - 1;
+        mh.index_length = 0;
+        size_t vertex_length = sizeof(aiVector3D); // 单个顶点数据的长度
+        if (pointer->HasNormals())
+        {
+            vertex_length += sizeof(aiVector3D);
+        }
+        if (pointer->HasTextureCoords())
+        {
+            for (size_t i = 0; i < pointer->GetNumUVChannels(); i++)
+            {
+                vertex_length += sizeof(ai_real) * pointer->mNumUVComponents[i];
+            }
+        }
+        if (pointer->HasVertexColors())
+        {
+            vertex_length += sizeof(aiColor4D) * pointer->GetNumColorChannels();
+        }
+        if (pointer->HasTangentsAndBitangents())
+        {
+            vertex_length += sizeof(aiVector3D) * 2;
+        }
+        if (pointer->HasFaces())
+        {
+            mh.index_length = pointer->mNumFaces * sizeof(unsigned int) * 3;
+        }
+        mh.vertex_length = vertex_length * pointer->mNumVertices;
+        mh.index_start = sizeof(ModelHead) + mh.vertex_length;
+        mh.vertex_start = sizeof(ModelHead);
+
+        void *mesh_data = malloc(mh.index_start + mh.index_length), *curpos = mesh_data;
+        if (mesh_data == nullptr)
+        {
+            ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
+            error_handle();
+            return;
+        }
+        memcpy(mesh_data, &mh, sizeof(ModelHead));
+        for (size_t i = 0; i < pointer->mNumVertices; i++)
+        {
+            *((aiVector3D *)curpos) = pointer->mVertices[i];
+            curpos += sizeof(aiVector3D);
+            if (pointer->HasNormals())
+            {
+                *((aiVector3D *)curpos) = pointer->mNormals[i];
+                curpos += sizeof(aiVector3D);
+            }
+            if (pointer->HasTextureCoords())
+            {
+                for (size_t j = 0; j < pointer->GetNumUVChannels(); j++)
+                {
+                    *((aiVector3D *)curpos) = pointer->mTextureCoords[j][i];
+                    curpos += sizeof(ai_real) * pointer->mNumUVComponents[j];
+                }
+            }
+            if (pointer->HasVertexColors())
+            {
+                for (size_t j = 0; j < pointer->GetNumColorChannels(); j++)
+                {
+                    *((aiColor4D *)curpos) = pointer->mColors[j][i];
+                    curpos += sizeof(aiColor4D);
+                }
+            }
+            if (pointer->HasTangentsAndBitangents())
+            {
+                *((aiVector3D *)curpos) = pointer->mTangents[i];
+                curpos += sizeof(aiVector3D);
+                *((aiVector3D *)curpos) = pointer->mBitangents[i];
+                curpos += sizeof(aiVector3D);
+            }
+        }
+        for (size_t i = 0; i < pointer->mNumFaces; i++)
+        {
+            for (size_t j = 0; j < 3; j++)
+            {
+                *((unsigned int *)curpos) = pointer->mFaces[i].mIndices[j];
+                curpos += sizeof(unsigned int);
+            }
+        }
+        size_t compress_size = compressBound(mh.index_start + mh.index_length);
+        void *compress_data = malloc(compress_size);
+        if (compress_data == nullptr)
+        {
+            ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
+            error_handle();
+            return;
+        }
+        int res = compress2((Bytef *)compress_data, (uLongf *)&compress_size, (Bytef *)mesh_data, uLong(mh.index_start + mh.index_length), COMPRESS_LEVEL);
+        free(mesh_data);
+        if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
+        {
+            free(compress_data);
+            ERROR(LIB_ZLIB_ERROR, LIB_ZLIB_COMPRESS_ERROR << res);
+            error_handle();
+            return;
+        }
+        file.open(path, ios::binary | ios::out | ios::trunc);
+        file.write((char *)&head, sizeof(uint64_t));
+        file.write((char*)compress_data, compress_size);
+        file.close();
+        free(compress_data);
+    }
+    void GenerateTextureFile2D(const char *path)
     {
         TextureHead th;
-        th.gl_target=GL_TEXTURE_2D;
-        th.gl_type=GL_UNSIGNED_BYTE;
-        th.depth=0;
+        th.gl_target = GL_TEXTURE_2D;
+        th.gl_type = GL_UNSIGNED_BYTE;
+        th.depth = 0;
         int n;
-        uint8_t* data = stbi_load(path, th.width,th.height,&n,0);
-        size_t data_length = th.width * th.height * n * sizeof(uint8_t);
-        if (data==nullptr)
+        uint8_t *data = stbi_load(path, &th.width, &th.height, &n, 0);
+        if (data == nullptr)
         {
-            ERROR(LIB_STB_IMAGE_ERROR,LIB_STB_IMAGE_LOAD_ERROR);
+            ERROR(LIB_STB_IMAGE_ERROR, LIB_STB_IMAGE_LOAD_ERROR);
             error_handle();
+            return;
         }
+        size_t data_length = th.width * th.height * n * sizeof(uint8_t);
+        cout << "size:\t" << data_length << "Bytes\n";
+
         switch (n)
         {
         case 1:
-            th.gl_format=GL_ALPHA;
+            th.gl_internal_format = th.gl_format = GL_ALPHA;
             break;
         case 2:
-            th.gl_format=GL_RG;
+            th.gl_internal_format = th.gl_format = GL_RG;
             break;
         case 3:
-            th.gl_format=GL_RGB;
+            th.gl_internal_format = th.gl_format = GL_RGB;
             break;
         case 4:
-            th.gl_format=GL_RGBA;
+            th.gl_internal_format = th.gl_format = GL_RGBA;
             break;
         default:
-            ERROR(RES_ERROR,RES_TEXTURE_CANNEL_ERROR<<n);
+            ERROR(RES_ERROR, RES_TEXTURE_CANNEL_ERROR << n);
             error_handle();
-            break;
+            return;
         }
-        th.gl_internal_format=th.gl_format;
+        cout << "cannels:\t" << th.gl_format << '\n';
         size_t len = strlen(path);
-        char p[len+5];
-        strcpy(p,path);
-        strcpy(p+len,".tex");
+        char p[len + 10];
+        strcpy(p, path);
+        strcpy(p + len, ".texture");
         ofstream file;
-        file.open(p,ios::binary|ios::out|ios::trunc);
+        file.open(p, ios::binary | ios::out | ios::trunc);
         if (!file.is_open())
         {
-            ERROR(RES_ERROR,RES_CANNOT_CREATE_FILE_ERROR);
+            ERROR(RES_ERROR, RES_CANNOT_CREATE_FILE_ERROR);
             error_handle();
+            return;
         }
+
         uint64_t head = TEXTURE_HEADER;
-        file.write((char*)&head,sizeof(uint64_t));
-        file.seekp(sizeof(size_t),ios::cur);
-        head = compressBound(data_length);
-        void* tmp = malloc(head);
-        if (tmp==nullptr)
+        file.write((char *)&head, sizeof(uint64_t));
+
+        head = compressBound(data_length + sizeof(TextureHead)); // head用作压缩后大小
+        void *before = malloc(data_length + sizeof(TextureHead));
+        void *compressdata = malloc(head);
+        if (before == nullptr || compressdata == nullptr)
         {
-            ERROR(MEMORY_ERROR,OUT_OF_MEMORY_ERROR);
+            free(before);
+            free(compressdata);
+            ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
+            return;
         }
-        int res = compress2(tmp, &head, data, data_length, COMPRESS_LEVEL);
-        if (res==Z_MEM_ERROR || res==Z_BUF_ERROR||res==Z_DATA_ERROR)
-        {
-            ERROR(LIB_ZLIB_ERROR,LIB_ZLIB_COMPRESS_ERROR<<res);
-            error_handle();       
-        }
-        file.write(tmp, head);
-        file.seekp(sizeof(uint64_t),ios::beg);
-        file.write(head);
-        free(tmp);
+        memcpy(before, &th, sizeof(TextureHead));
+        memcpy((uint8_t *)before + sizeof(TextureHead), data, data_length);
         stbi_image_free(data);
+
+        int res = compress2((Bytef *)compressdata, (uLongf *)&head, (Bytef *)before, (uLong)(data_length + sizeof(TextureHead)), COMPRESS_LEVEL); // head用作实际压缩后大小
+        cout << "before compress:" << data_length + sizeof(TextureHead) << '\n';
+        cout << "compress size:\t" << head << endl;
+        free(before);
+        if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
+        {
+            free(compressdata);
+            file.close();
+            ERROR(LIB_ZLIB_ERROR, LIB_ZLIB_COMPRESS_ERROR << res);
+            error_handle();
+            return;
+        }
+        file.seekp(sizeof(uint64_t), ios::cur);
+        file.write((char *)compressdata, head);
+        file.seekp(sizeof(uint64_t), ios::beg); // 移动到开头
+        head = data_length + sizeof(TextureHead);
+        file.write((char *)&head, sizeof(uint64_t)); // 写入压缩前大小
+        free(compressdata);
+        file.close();
     }
 
 } // namespace Boundless::Resource

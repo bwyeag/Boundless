@@ -20,6 +20,7 @@ namespace Boundless::Log
 
     const char* const LIB_ZLIB_ERROR = "ZLIB";
     const char* const LIB_STB_IMAGE_ERROR = "STB_IMAGE";
+    const char* const LIB_ASSMIP_ERROR = "ASSIMP";
     /*外部库错误文本*/
     const char* const LIB_ZLIB_UNCOMPRESS_ERROR = "在解压时出现错误:";
     const char* const LIB_ZLIB_COMPRESS_ERROR = "在压缩时出现错误:";

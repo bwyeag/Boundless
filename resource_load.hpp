@@ -2,9 +2,10 @@
 #define _RESOURCE_LOAD_HPP_
 
 #include "glad/glad.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
 #include "zlib/zlib.h"
+#include "assimp/Importer.hpp"
+#include "assimp/scene.h"
+#include "assimp/postprocess.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -14,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <stack>
 
 #include "error_handle.hpp"
 
@@ -23,13 +25,17 @@ namespace Boundless::Resource
     using std::fstream;
     using std::ifstream;
     using std::ofstream;
+    using std::cout;
+    using std::cin;
+    using std::endl;
     using std::ios;
     using std::vector;
+    using std::stack;
 
-    using Log;
+    using namespace Boundless::Log;
 /*
-*   模型文件存储规范 2024/2/4
-*   以.modelfile为后缀名
+*   模型文件存储规范 2024/2/6
+*   以.mesh为后缀名
 *   (以下按文件顺序)(开头)
 *   8字节存储标志符: 0xF241282943FF0001
 *   8字节压缩文件原本长度
@@ -86,7 +92,7 @@ namespace Boundless::Resource
         GLsizei mipmap_level;
         GLsizei width,height,depth;
     };
-    typedef void (*TextureLoadFunction)(TextureLoader*, GLuint, TextureHead*);
+    typedef void (*TextureLoadFunction)(GLuint,TextureHead*);  
     class TextureLoader
     {
     private:
@@ -96,7 +102,7 @@ namespace Boundless::Resource
     public:
         TextureLoader(const char* path, TextureLoadFunction f);
         inline TextureLoader(string path, TextureLoadFunction f)
-            : ModelLoader(path.c_str(), f) {}
+            : TextureLoader(path.c_str(), f) {}
         TextureLoader(const TextureLoader&)=delete;
         TextureLoader(TextureLoader&&)=default;
         TextureLoader& operator=(const TextureLoader&)=delete;
@@ -108,6 +114,7 @@ namespace Boundless::Resource
     
     void GenerateInitialize();
     void GenerateModelFile(const char* path);
+    void GenerateMeshFile(const aiNode*);
     void GenerateTextureFile2D(const char* path);
 
 } // namespace Boundless::Resource
