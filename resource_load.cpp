@@ -5,11 +5,11 @@
 namespace Boundless::Resource
 {
     // 模型加载函数,将模型数据加载到OpenGL
-    ModelLoader::ModelLoader(const char *path, ModelLoadFunction f)
+    MeshLoader::MeshLoader(const char* path, MeshLoadFunction f)
     {
         LoadFile(path, f);
     }
-    void ModelLoader::LoadFile(const char *path, ModelLoadFunction f)
+    void MeshLoader::LoadFile(const char* path, MeshLoadFunction f)
     {
         model_file.open(path, ios::binary | ios::in);
         {
@@ -19,7 +19,7 @@ namespace Boundless::Resource
                 error_handle();
             }
             uint64_t head;
-            model_file.read((char *)&head, sizeof(uint64_t));
+            model_file.read((char*)&head, sizeof(uint64_t));
             if (head != MODEL_HEADER)
             {
                 ERROR(RES_ERROR, RES_FILE_TYPE_ERROR << head);
@@ -28,7 +28,7 @@ namespace Boundless::Resource
         }
         // tar<--src
         size_t tarlength; // 读取压缩前大小
-        model_file.read((char *)&tarlength, sizeof(size_t));
+        model_file.read((char*)&tarlength, sizeof(size_t));
 
         size_t start, srclength; // 读取压缩后文件长度
         start = model_file.tellg();
@@ -38,63 +38,73 @@ namespace Boundless::Resource
         model_file.seekg(start);
 
         // 分配解压缩所用的内存
-        void *src = malloc(srclength);
-        void *tar = malloc(tarlength);
+        void* src = malloc(srclength);
+        void* tar = malloc(tarlength);
         if (src == nullptr || tar == nullptr)
         {
             ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
         }
-        model_file.read((char *)src, srclength);                                                     // 读取压缩前内容
-        int res = uncompress2((Bytef *)tar, (uLongf *)&tarlength, (Bytef *)src, (uLong *)srclength); // 解压缩
+        model_file.read((char*)src, srclength);                                                     // 读取压缩前内容
+        int res = uncompress2((Bytef*)tar, (uLongf*)&tarlength, (Bytef*)src, (uLong*)srclength); // 解压缩
         free(src);
         if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
         {
             ERROR(LIB_ZLIB_ERROR, LIB_ZLIB_UNCOMPRESS_ERROR << res);
             error_handle();
         }
-        ModelHead head_data;
-        memcpy(&head_data, tar, sizeof(ModelHead)); // 复制纹理头数据
+        MeshHead head_data;
+        memcpy(&head_data, tar, sizeof(MeshHead)); // 复制纹理头数据
 
         GLsizei bcnt = head_data.buffer_count;
         has_other_buffers = (bcnt == 0) ? false : true;
         if (head_data.index_start == UINT64_MAX)
-            has_index = false, bcnt += 1;
+        {
+            index_status = IndexStatus::NONE, bcnt += 1;
+        }
+        else if (head_data.restart_index == UINT64_MAX)
+        {
+            index_status = IndexStatus::ONLY_INDEX;
+            bcnt += 2;
+        }
         else
-            has_index = true, bcnt += 2;
-        restart_index = head_data.restart_index;
+        {
+            index_status = IndexStatus::INDEX_WITH_RESTARTINDEX;
+            restart_index = head_data.restart_index;
+            bcnt += 2;
+        }
 
         buffers.resize(bcnt);
-        glCreateBuffers(bcnt, &buffers[0]);
+        glCreateBuffers(bcnt, &buffers [0]);
 
-        BufferInfoData bufferdata[head_data.buffer_count];
+        BufferInfoData bufferdata [head_data.buffer_count];
         if (head_data.buffer_count > 0)
         {
-            memcpy(&bufferdata, (uint8_t *)tar + sizeof(ModelHead), head_data.buffer_count * sizeof(BufferInfoData));
+            memcpy(&bufferdata, (uint8_t*)tar + sizeof(MeshHead), head_data.buffer_count * sizeof(BufferInfoData));
         }
 
         if (f == nullptr)
         {
-            glNamedBufferStorage(buffers[0], head_data.vertex_length, nullptr, GL_MAP_WRITE_BIT);
-            char *wdata = (char *)glMapNamedBuffer(buffers[0], GL_WRITE_ONLY);
-            memcpy(wdata, (uint8_t *)tar + head_data.vertex_start, head_data.vertex_length);
-            glUnmapNamedBuffer(buffers[0]);
+            glNamedBufferStorage(buffers [0], head_data.vertex_length, nullptr, GL_MAP_WRITE_BIT);
+            char* wdata = (char*)glMapNamedBuffer(buffers [0], GL_WRITE_ONLY);
+            memcpy(wdata, (uint8_t*)tar + head_data.vertex_start, head_data.vertex_length);
+            glUnmapNamedBuffer(buffers [0]);
 
             if (has_index)
             {
-                glNamedBufferStorage(buffers[1], head_data.index_length, nullptr, GL_MAP_WRITE_BIT);
-                char *wdata = (char *)glMapNamedBuffer(buffers[1], GL_WRITE_ONLY);
-                memcpy(wdata, (uint8_t *)tar + head_data.index_start, head_data.index_length);
-                glUnmapNamedBuffer(buffers[1]);
+                glNamedBufferStorage(buffers [1], head_data.index_length, nullptr, GL_MAP_WRITE_BIT);
+                char* wdata = (char*)glMapNamedBuffer(buffers [1], GL_WRITE_ONLY);
+                memcpy(wdata, (uint8_t*)tar + head_data.index_start, head_data.index_length);
+                glUnmapNamedBuffer(buffers [1]);
             }
 
-            GLuint *bptr = &buffers[has_index ? 2 : 1];
+            GLuint* bptr = &buffers [has_index ? 2 : 1];
             for (uint32_t i = 0; i < head_data.buffer_count; i++)
             {
-                glNamedBufferStorage(bptr[i], bufferdata[i].length, nullptr, GL_MAP_WRITE_BIT);
-                char *wdata = (char *)glMapNamedBuffer(bptr[i], GL_WRITE_ONLY);
-                memcpy(wdata, (uint8_t *)tar + bufferdata[i].start, bufferdata[i].length);
-                glUnmapNamedBuffer(bptr[i]);
+                glNamedBufferStorage(bptr [i], bufferdata [i].length, nullptr, GL_MAP_WRITE_BIT);
+                char* wdata = (char*)glMapNamedBuffer(bptr [i], GL_WRITE_ONLY);
+                memcpy(wdata, (uint8_t*)tar + bufferdata [i].start, bufferdata [i].length);
+                glUnmapNamedBuffer(bptr [i]);
             }
         }
         else
@@ -105,11 +115,11 @@ namespace Boundless::Resource
         model_file.close();
     }
 
-    TextureLoader::TextureLoader(const char *path, TextureLoadFunction f)
+    TextureLoader::TextureLoader(const char* path, TextureLoadFunction f)
     {
         LoadFile(path, f);
     }
-    void TextureLoader::LoadFile(const char *path, TextureLoadFunction f)
+    void TextureLoader::LoadFile(const char* path, TextureLoadFunction f)
     {
         texture_file.open(path, ios::binary | ios::in);
         {
@@ -119,7 +129,7 @@ namespace Boundless::Resource
                 error_handle();
             }
             uint64_t head;
-            texture_file.read((char *)&head, sizeof(uint64_t));
+            texture_file.read((char*)&head, sizeof(uint64_t));
             if (head != TEXTURE_HEADER)
             {
                 ERROR(RES_ERROR, RES_FILE_TYPE_ERROR << head);
@@ -127,7 +137,7 @@ namespace Boundless::Resource
             }
         }
         size_t tarlength; // 读取压缩前大小
-        texture_file.read((char *)&tarlength, sizeof(size_t));
+        texture_file.read((char*)&tarlength, sizeof(size_t));
 
         size_t start, srclength; // 读取压缩后文件长度
         start = texture_file.tellg();
@@ -137,15 +147,15 @@ namespace Boundless::Resource
         texture_file.seekg(start);
 
         // 分配解压缩所用的内存
-        void *src = malloc(srclength);
-        void *tar = malloc(tarlength);
+        void* src = malloc(srclength);
+        void* tar = malloc(tarlength);
         if (src == nullptr || tar == nullptr)
         {
             ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
         }
-        texture_file.read((char *)src, srclength);                                                   // 读取压缩前内容
-        int res = uncompress2((Bytef *)tar, (uLongf *)&tarlength, (Bytef *)src, (uLong *)srclength); // 解压缩
+        texture_file.read((char*)src, srclength);                                                   // 读取压缩前内容
+        int res = uncompress2((Bytef*)tar, (uLongf*)&tarlength, (Bytef*)src, (uLong*)srclength); // 解压缩
         if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
         {
             ERROR(LIB_ZLIB_ERROR, LIB_ZLIB_UNCOMPRESS_ERROR << res);
@@ -154,20 +164,20 @@ namespace Boundless::Resource
         memcpy(&texture_info, tar, sizeof(TextureHead)); // 复制纹理头数据
         glCreateTextures(texture_info.gl_target, 1, &texture);
         int count = 1 + (texture_info.height == 0) ? 0 : 1 + (texture_info.depth == 0) ? 0
-                                                                                       : 1;
+            : 1;
         switch (count) // 加载纹理数据
         {
         case 1:
             glTextureStorage1D(texture, texture_info.mipmap_level, texture_info.gl_internal_format, texture_info.width);
-            glTextureSubImage1D(texture, 0, 0, texture_info.width, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
+            glTextureSubImage1D(texture, 0, 0, texture_info.width, texture_info.gl_format, texture_info.gl_type, (uint8_t*)tar + sizeof(TextureHead));
             break;
         case 2:
             glTextureStorage2D(texture, texture_info.mipmap_level, texture_info.gl_internal_format, texture_info.width, texture_info.height);
-            glTextureSubImage2D(texture, 0, 0, 0, texture_info.width, texture_info.height, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
+            glTextureSubImage2D(texture, 0, 0, 0, texture_info.width, texture_info.height, texture_info.gl_format, texture_info.gl_type, (uint8_t*)tar + sizeof(TextureHead));
             break;
         case 3:
             glTextureStorage3D(texture, texture_info.mipmap_level, texture_info.gl_internal_format, texture_info.width, texture_info.height, texture_info.depth);
-            glTextureSubImage3D(texture, 0, 0, 0, 0, texture_info.width, texture_info.height, texture_info.depth, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
+            glTextureSubImage3D(texture, 0, 0, 0, 0, texture_info.width, texture_info.height, texture_info.depth, texture_info.gl_format, texture_info.gl_type, (uint8_t*)tar + sizeof(TextureHead));
             break;
         default:
             ERROR(RES_ERROR, RES_TEXTURE_TYPE_ERROR << count);
@@ -187,10 +197,10 @@ namespace Boundless::Resource
     {
         stbi_set_flip_vertically_on_load(true);
     }
-    void GenerateModelFile(const char *path)
+    void GenerateModelFile(const char* path)
     {
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+        const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             ERROR(LIB_ASSMIP_ERROR, importer.GetErrorString());
@@ -200,15 +210,15 @@ namespace Boundless::Resource
         string pstr = path;
         for (size_t i = 0; i < scene->mNumMeshes; i++)
         {
-            GenerateMeshFile(scene->mMeshes[i], pstr + std::to_string(i) + scene->mMeshes[i]->mName.C_Str() + ".mesh");
+            GenerateMeshFile(scene->mMeshes [i], pstr + std::to_string(i) + scene->mMeshes [i]->mName.C_Str() + ".mesh");
         }
     }
-    void GenerateMeshFile(const aiMesh *pointer, const string &path)
+    void GenerateMeshFile(const aiMesh* pointer, const string& path)
     {
         ofstream file;
-        ModelHead mh;
+        MeshHead mh;
         mh.buffer_count = 0;
-        mh.restart_index = UINT64_MAX - 1;
+        mh.restart_index = UINT64_MAX;
         mh.index_length = 0;
         size_t vertex_length = sizeof(aiVector3D); // 单个顶点数据的长度
         cout << "File:" << path << '\t' << pointer->mName.C_Str() << '\n';
@@ -225,8 +235,8 @@ namespace Boundless::Resource
             {
                 if (pointer->HasTextureCoords(i))
                 {
-                    vertex_length += sizeof(ai_real) * pointer->mNumUVComponents[i];
-                    cout << "\n\t" << (pointer->HasTextureCoordsName(i) ? pointer->mTextureCoordsNames[i]->C_Str() : "NULL") << ": vec" << pointer->mNumUVComponents[i];
+                    vertex_length += sizeof(ai_real) * pointer->mNumUVComponents [i];
+                    cout << "\n\t" << (pointer->HasTextureCoordsName(i) ? pointer->mTextureCoordsNames [i]->C_Str() : "NULL") << ": vec" << pointer->mNumUVComponents [i];
                 }
             }
         }
@@ -247,47 +257,47 @@ namespace Boundless::Resource
         }
         cout << endl;
         mh.vertex_length = vertex_length * pointer->mNumVertices;
-        mh.index_start = sizeof(ModelHead) + mh.vertex_length;
-        mh.vertex_start = sizeof(ModelHead);
+        mh.index_start = sizeof(MeshHead) + mh.vertex_length;
+        mh.vertex_start = sizeof(MeshHead);
 
-        uint8_t *mesh_data = (uint8_t *)malloc(mh.index_start + mh.index_length), *curpos = mesh_data;
+        uint8_t* mesh_data = (uint8_t*)malloc(mh.index_start + mh.index_length), * curpos = mesh_data;
         if (mesh_data == nullptr)
         {
             ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
             return;
         }
-        memcpy(mesh_data, &mh, sizeof(ModelHead));
+        memcpy(mesh_data, &mh, sizeof(MeshHead));
         for (size_t i = 0; i < pointer->mNumVertices; i++)
         {
-            *((aiVector3D *)curpos) = pointer->mVertices[i];
+            *((aiVector3D*)curpos) = pointer->mVertices [i];
             curpos += sizeof(aiVector3D);
             if (pointer->HasNormals())
             {
-                *((aiVector3D *)curpos) = pointer->mNormals[i];
+                *((aiVector3D*)curpos) = pointer->mNormals [i];
                 curpos += sizeof(aiVector3D);
             }
             for (size_t j = 0; j < pointer->GetNumUVChannels(); j++)
             {
                 if (pointer->HasTextureCoords(j))
                 {
-                    *((aiVector3D *)curpos) = pointer->mTextureCoords[j][i];
-                    curpos += sizeof(ai_real) * pointer->mNumUVComponents[j];
+                    *((aiVector3D*)curpos) = pointer->mTextureCoords [j][i];
+                    curpos += sizeof(ai_real) * pointer->mNumUVComponents [j];
                 }
             }
             for (size_t j = 0; j < pointer->GetNumColorChannels(); j++)
             {
                 if (pointer->HasVertexColors(j))
                 {
-                    *((aiColor4D *)curpos) = pointer->mColors[j][i];
+                    *((aiColor4D*)curpos) = pointer->mColors [j][i];
                     curpos += sizeof(aiColor4D);
                 }
             }
             if (pointer->HasTangentsAndBitangents())
             {
-                *((aiVector3D *)curpos) = pointer->mTangents[i];
+                *((aiVector3D*)curpos) = pointer->mTangents [i];
                 curpos += sizeof(aiVector3D);
-                *((aiVector3D *)curpos) = pointer->mBitangents[i];
+                *((aiVector3D*)curpos) = pointer->mBitangents [i];
                 curpos += sizeof(aiVector3D);
             }
         }
@@ -295,19 +305,19 @@ namespace Boundless::Resource
         {
             for (size_t j = 0; j < 3; j++)
             {
-                *((unsigned int *)curpos) = pointer->mFaces[i].mIndices[j];
+                *((unsigned int*)curpos) = pointer->mFaces [i].mIndices [j];
                 curpos += sizeof(unsigned int);
             }
         }
         size_t compress_size = compressBound(mh.index_start + mh.index_length);
-        void *compress_data = malloc(compress_size);
+        void* compress_data = malloc(compress_size);
         if (compress_data == nullptr)
         {
             ERROR(MEMORY_ERROR, OUT_OF_MEMORY_ERROR);
             error_handle();
             return;
         }
-        int res = compress2((Bytef *)compress_data, (uLongf *)&compress_size, (Bytef *)mesh_data, uLong(mh.index_start + mh.index_length), COMPRESS_LEVEL);
+        int res = compress2((Bytef*)compress_data, (uLongf*)&compress_size, (Bytef*)mesh_data, uLong(mh.index_start + mh.index_length), COMPRESS_LEVEL);
         free(mesh_data);
         if (res == Z_MEM_ERROR || res == Z_BUF_ERROR || res == Z_DATA_ERROR)
         {
@@ -318,10 +328,10 @@ namespace Boundless::Resource
         }
         uint64_t head = MODEL_HEADER;
         file.open(path, ios::binary | ios::out | ios::trunc);
-        file.write((char *)&head, sizeof(uint64_t));
+        file.write((char*)&head, sizeof(uint64_t));
         head = mh.index_start + mh.index_length;
-        file.write((char *)&head, sizeof(uint64_t));
-        file.write((char *)compress_data, compress_size);
+        file.write((char*)&head, sizeof(uint64_t));
+        file.write((char*)compress_data, compress_size);
         file.close();
         free(compress_data);
         cout << "Vertices Count:" << pointer->mNumVertices << '\n';
@@ -329,17 +339,17 @@ namespace Boundless::Resource
         cout << "Data size:" << head << "Bytes\n";
         cout << "END;" << endl;
     }
-    void GenerateTextureFile2D(const char *path)
+    void GenerateTextureFile2D(const char* path)
     {
         TextureHead th;
         th.gl_target = GL_TEXTURE_2D;
         th.gl_type = GL_UNSIGNED_BYTE;
         th.depth = 0;
         int n;
-        uint8_t *data = stbi_load(path, &th.width, &th.height, &n, 0);
+        uint8_t* data = stbi_load(path, &th.width, &th.height, &n, 0);
         if (data == nullptr)
         {
-            ERROR(LIB_STB_IMAGE_ERROR, LIB_STB_IMAGE_LOAD_ERROR<<path);
+            ERROR(LIB_STB_IMAGE_ERROR, LIB_STB_IMAGE_LOAD_ERROR << path);
             error_handle();
             return;
         }
@@ -368,7 +378,7 @@ namespace Boundless::Resource
         }
         cout << "Image Cannels:\t" << th.gl_format << '\n';
         size_t len = strlen(path);
-        char p[len + 10];
+        char p [len + 10];
         strcpy(p, path);
         strcpy(p + len, ".texture");
         ofstream file;
@@ -381,11 +391,11 @@ namespace Boundless::Resource
         }
 
         uint64_t head = TEXTURE_HEADER;
-        file.write((char *)&head, sizeof(uint64_t));
+        file.write((char*)&head, sizeof(uint64_t));
 
         head = compressBound(data_length + sizeof(TextureHead)); // head用作压缩后大小
-        void *before = malloc(data_length + sizeof(TextureHead));
-        void *compressdata = malloc(head);
+        void* before = malloc(data_length + sizeof(TextureHead));
+        void* compressdata = malloc(head);
         if (before == nullptr || compressdata == nullptr)
         {
             free(before);
@@ -395,10 +405,10 @@ namespace Boundless::Resource
             return;
         }
         memcpy(before, &th, sizeof(TextureHead));
-        memcpy((uint8_t *)before + sizeof(TextureHead), data, data_length);
+        memcpy((uint8_t*)before + sizeof(TextureHead), data, data_length);
         stbi_image_free(data);
 
-        int res = compress2((Bytef *)compressdata, (uLongf *)&head, (Bytef *)before, (uLong)(data_length + sizeof(TextureHead)), COMPRESS_LEVEL); // head用作实际压缩后大小
+        int res = compress2((Bytef*)compressdata, (uLongf*)&head, (Bytef*)before, (uLong)(data_length + sizeof(TextureHead)), COMPRESS_LEVEL); // head用作实际压缩后大小
         cout << "Before Compress Size:\t" << data_length + sizeof(TextureHead) << '\n';
         cout << "After Compress Size:\t" << head << endl;
         free(before);
@@ -411,10 +421,10 @@ namespace Boundless::Resource
             return;
         }
         file.seekp(sizeof(uint64_t), ios::cur);
-        file.write((char *)compressdata, head);
+        file.write((char*)compressdata, head);
         file.seekp(sizeof(uint64_t), ios::beg); // 移动到开头
         head = data_length + sizeof(TextureHead);
-        file.write((char *)&head, sizeof(uint64_t)); // 写入压缩前大小
+        file.write((char*)&head, sizeof(uint64_t)); // 写入压缩前大小
         free(compressdata);
         file.close();
         cout << "END;" << endl;

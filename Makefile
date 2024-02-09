@@ -100,3 +100,6 @@ clean:
 run: all
 	./$(OUTPUTMAIN)
 	@echo Executing 'run: all' complete!
+
+console:
+	$(CXX) console.cpp resource_load.cpp -oconsole -O3 -Llibraries -lglad -lassimp -lzlib

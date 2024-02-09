@@ -27,6 +27,8 @@ namespace Boundless::Log
 
     const char* const LIB_STB_IMAGE_LOAD_ERROR = "在打开图像时出现错误:";
 
+    /*渲染错误文本*/
+    const char* const RENDER_INDEX_STATUS_ERROR = "索引状态错误";
     /*通用错误文本*/
     const char* const OUT_OF_MEMORY_ERROR = "内存耗尽";
     /*资源错误文本*/
@@ -41,5 +43,47 @@ namespace Boundless::Log
     {
         exit(-1);
     }
+
+    //////////////////////////////////////////////////////////////////
+    //  错误处理部分
+    //  Error Handle
+    //
+    extern const char *string_BUFFER;
+    extern const char *string_SHADER;
+    extern const char *string_PROGRAM;
+    extern const char *string_VERTEX_ARRAY;
+    extern const char *string_QUERY;
+    extern const char *string_PROGRAM_PIPELINE;
+    extern const char *string_TRANSFORM_FEEDBACK;
+    extern const char *string_SAMPLER;
+    extern const char *string_TEXTURE;
+    extern const char *string_RENDERBUFFER;
+    extern const char *string_FRAMEBUFFER;
+    extern const char *string_null;
+    const char *GetObjectType(GLenum o);
+    extern const char *string_DEBUG_SOURCE_API;
+    extern const char *string_DEBUG_SOURCE_WINDOW_SYSTEM;
+    extern const char *string_DEBUG_SOURCE_SHADER_COMPILER;
+    extern const char *string_DEBUG_SOURCE_THIRD_PARTY;
+    extern const char *string_DEBUG_SOURCE_APPLICATION;
+    extern const char *string_DEBUG_SOURCE_OTHER;
+    const char *GetSourceFrom(GLenum s);
+    extern const char *string_GL_DEBUG_TYPE_ERROR;
+    extern const char *string_GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR;
+    extern const char *string_GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR;
+    extern const char *string_GL_DEBUG_TYPE_PORTABILITY;
+    extern const char *string_GL_DEBUG_TYPE_PERFORMANCE;
+    extern const char *string_GL_DEBUG_TYPE_MARKER;
+    extern const char *string_GL_DEBUG_TYPE_PUSH_GROUP;
+    extern const char *string_GL_DEBUG_TYPE_POP_GROUP;
+    extern const char *string_GL_DEBUG_TYPE_OTHER;
+    const char *GetSourceType(GLenum s);
+    extern const char *string_GL_DEBUG_SEVERITY_HIGH;
+    extern const char *string_GL_DEBUG_SEVERITY_MEDIUM;
+    extern const char *string_GL_DEBUG_SEVERITY_LOW;
+    extern const char *string_GL_DEBUG_SEVERITY_NOTIFICATION;
+    const char *GetSeverity(GLenum s);
+    void opengl_error_callback(GLenum source, GLenum type, GLuint id,
+                               GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
 }
 #endif //!_ERROR_HANDLE_HPP_FILE_

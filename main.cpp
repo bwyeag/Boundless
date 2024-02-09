@@ -1,37 +1,26 @@
-#include "resource_load.hpp"
-#include <string>
-#include <iostream>
+#include "gl_render.hpp"
 
-using namespace Boundless::Resource;
+using namespace Boundless;
 int main()
 {
-	std::string command,path;
-	std::cout << "Boundless> ";
-	std::cin >> command;
-	GenerateInitialize();
-	while (command != "exit")
+	system("chcp 65001");
+#ifdef _DEBUG
+	std::cout << "<DEBUG>" << std::endl;
+#endif
+	if (!opengl_init())
 	{
-		size_t pos;
-		if (pos = command.find("genmodel"),pos!=std::string::npos)
-		{
-			std::getline(std::cin,path);
-			path.erase(0,path.find_first_not_of(' '));
-			GenerateModelFile(path.c_str());
-			std::cout<<"All Done.\n";
-		}
-		else if (pos = command.find("gentexture"),pos!=std::string::npos)
-		{
-			std::getline(std::cin,path);
-			path.erase(0,path.find_first_not_of(' '));
-			GenerateTextureFile2D(path.c_str());
-			std::cout<<"All Done.\n";
-		}
-		else
-		{
-			std::cout << "error: illegal commands" << std::endl;
-		}
-		std::cout << "Boundless> ";
-		std::cin >> command;
+		exit(EXIT_FAILURE);
 	}
-	std::cout << "exit;\n";
+
+	while (!glfwWindowShouldClose(window_ptr))
+	{
+
+		glfwSwapBuffers(window_ptr);
+		glfwPollEvents();
+	}
+
+    glfwDestroyWindow(window_ptr);
+	glfwTerminate();
+	system("pause");
+	exit(EXIT_SUCCESS);
 }
