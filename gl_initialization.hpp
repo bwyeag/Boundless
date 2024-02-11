@@ -1,7 +1,7 @@
 #ifndef _INITIALIZATION_HPP_FILE_
 #define _INITIALIZATION_HPP_FILE_
 
-namespace Boundless::Initlization
+namespace Boundless::Init
 {
     //////////////////////////////////////////////////////////////////
     //  GLFW处理部分

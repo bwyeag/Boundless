@@ -3,9 +3,11 @@
 
 #include "glad/glad.h"
 #include "zlib/zlib.h"
+#ifdef BOUNDLESS_GENERATE_FUNCTIONS
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#endif //BOUNDLESS_GENERATE_FUNCTIONS
 
 #include <cstdint>
 #include <cstddef>
@@ -119,12 +121,12 @@ namespace Boundless::Resource
         inline GLuint GetTexture() {return texture;}
         void LoadFile(const char* path, TextureLoadFunction f);
     };
-    
+#ifdef BOUNDLESS_GENERATE_FUNCTIONS
     void GenerateInitialize();
     void GenerateModelFile(const char* path);
     void GenerateMeshFile(const aiMesh* ptr, const string &path);
     void GenerateTextureFile2D(const char* path);
-
+#endif //BOUNDLESS_GENERATE_FUNCTIONS
 } // namespace Boundless::Resource
 
 #endif //!_RESOURCE_LOAD_HPP_

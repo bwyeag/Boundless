@@ -1,6 +1,6 @@
-#include "initlizition.hpp"
+#include "gl_initlizition.hpp"
 
-namespace Boundless::Initlization
+namespace Boundless::Init
 {
     //////////////////////////////////////////////////////////////////
     //  GLFW回调处理部分

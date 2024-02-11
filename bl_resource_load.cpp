@@ -1,4 +1,4 @@
-#include "resource_load.hpp"
+#include "bl_resource_load.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
@@ -192,7 +192,7 @@ namespace Boundless::Resource
         }
         texture_file.close();
     }
-
+#ifdef BOUNDLESS_GENERATE_FUNCTIONS
     void GenerateInitialize()
     {
         stbi_set_flip_vertically_on_load(true);
@@ -429,5 +429,5 @@ namespace Boundless::Resource
         file.close();
         cout << "END;" << endl;
     }
-
+#endif //BOUNDLESS_GENERATE_FUNCTIONS
 } // namespace Boundless::Resource

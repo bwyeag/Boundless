@@ -1,10 +1,10 @@
-#include "data_struct.hpp"
+#include "bl_mesh.hpp"
 
-namespace Boundless
+namespace Boundless::Resource
 {
-    void MakeSurfaceRectangle(uint32_t x, uint32_t y, Math_F2 F, ptr_pack *ptrs)
+    void GenerateMeshRectangle(uint32_t x, uint32_t y, BinaryFunctionFloat F, mesh_pack *ptrs)
     {
-        ptrs->vertex_size = sizeof(float) * x * y;
+        ptrs->vertex_size = sizeof(float) * x * y * 3;
         ptrs->vertex_ptr = (float *)malloc(ptrs->vertex_size);
         ptrs->restart_index = x * y + 1;
         {
@@ -79,5 +79,4 @@ namespace Boundless
             }
         }
     }
-
-}
+} // namespace Boundless::Resource

@@ -1,4 +1,4 @@
-#include "render.hpp"
+#include "gl_render.hpp"
 
 namespace Boundless::Render
 {
@@ -32,6 +32,17 @@ namespace Boundless::Render
             return;
         }
     }
+    void Initialize(bool enable, const TransformDataPack& tdp,Resource::mesh_pack& mp, const RenderFunctionPack& rfp)
+    {
+        this->enable = enable;
+        transform.Initialize(tdp);
+        glCreateVertexArrays(1, &info.vertex_array);
+        glCreateBuffers(1, &info.vectex_buffer);
+        glNamedBufferData(info.vectex_buffer, mp.vertex_size, mp.vertex_ptr, GL_STATIC_DRAW);
+        glCreateBuffers(1, &info.index_buffer);
+        glNamedBufferData(info.index_buffer,mp.index_size,mp.index_ptr,GL_STATIC_DRAW);
+        glVertexArrayElementBuffer()
+    }
     void RenderObject::Draw(const Matrix4x4& mat)
     {
         if (enable)
@@ -46,10 +57,10 @@ namespace Boundless::Render
         glDeleteVertexArrays(1, &info.vertex_array);
     }
 
-    Render::Render(CameraData* camera, GLFWwindow* rander_window)
+    Render::Render(Camera& camera, GLFWwindow* rander_window)
         :render_datas(RENDER_INIT_BLOCKS)
     {
-        this->camera = camera;
+        this->camera = &camera;
         data_front = nullptr;
         this->rander_window = rander_window;
     }
@@ -58,57 +69,17 @@ namespace Boundless::Render
         glClearColor(RENDER_CLEAR_COLOR);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         RenderDataPack* t = data_front;
-        camera->UpdateProjection();
-        camera->UpdateView();
-        vp_mat = camera->projection_mat * camera->view_mat;
+        vp_mat = camera->GetProjection() * camera->GetView();
         while (t != nullptr)
         {
-            if (t->d.enable)
-            {
-                t->d.transform.UpdateMatrix();
-                t->d.draw_function(&(t->d), vp_mat);
-            }
+            t->d.Draw(vp_mat);
         }
         glfwSwapBuffers(rander_window);
     }
-    RenderData* Render::AddRenderObject(bool enable, const MeshLoader& ml, const Transform& tr, RenderCreateFunction rcf, RenderDrawFunction drawf, RenderDestoryFunction destf)
+    RenderObject* Render::AddRenderObject(bool enable, const TransformDataPack& tdp, const Resource::MeshLoader& ml, const RenderFunctionPack& rfp)
     {
         RenderDataPack* ptrp = render_datas.allocate();
-        RenderData* ptr = &ptrp->d;
-        ptr->enable = enable;
-        ptr->transform = tr;
-        ptr->transform.modificated = true;
-        glCreateVertexArrays(1, &ptr->vertex_array);
-        vectex_buffer = ml.GetBuffers() [0];
-        if (ml.HasIndex())
-        {
-            ptr->index_array = ml.GetBuffers() [1];
-        }
-        else
-        {
-            ptr->index_array = 0;
-        }
-        ptr->draw_function = drawf;
-        ptr->destory_function = destf;
-        if (ml.HasOtherBuffers())
-        {
-            size_t st = ml.has_index() ? 2 : 1;
-            rcf(ptr, &ml.GetBuffers() [st], ml.GetBuffers().size() - st, ml.GetRestartIndex());
-        }
-        else
-        {
-            rcf(ptr, nullptr, 0ULL, ml.GetRestartIndex());
-        }
-        if (data_front == nullptr)
-        {
-            data_front = ptrp;
-            ptrp->next = nullptr;
-        }
-        else
-        {
-            ptrp->next = data_front;
-            data_front = ptrp
-        }
+        ptrp->d.Initialize(enable, tdp,ml, rfp);
         return ptr;
     }
 } // namespace Boundless::Render

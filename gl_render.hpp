@@ -11,6 +11,7 @@
 #include "data_struct.hpp"
 #include "resource_load.hpp"
 #include "error_handle.hpp"
+#include "mesh.hpp"
 
 namespace Boundless::Render
 {
@@ -155,6 +156,7 @@ namespace Boundless::Render
         /// @param ml 渲染的模型网格
         /// @param rfp 渲染函数包装
         void Initialize(bool enable, const TransformDataPack& tdp, const Resource::MeshLoader& ml, const RenderFunctionPack& rfp);
+        void Initialize(bool enable, const TransformDataPack& tdp,Resource::mesh_pack& mp, const RenderFunctionPack& rfp);
         /// @brief 绘制调用
         /// @param mat 投影-视图矩阵
         void Draw(const Matrix4x4& mat);
@@ -193,10 +195,14 @@ namespace Boundless::Render
         Matrix4x4 projection_mat;
     public:
         inline void ModificateView() { view_modificated = true; }
+
         inline void ModificateProj() { proj_modificated = true; }
+        inline void SetViewType(ViewType vt) {type=vt;}
+        inline void SetNearPlane(Real n) { znear = n;}
+        inline void SetFarPlane(Real n) { zfar = n;}
+        inline void SetRatio(Real h, Real w) { pers_k = h/w;}
 
         inline Vector3 GetPosition() const { return position; }
-        inline void 
         inline const Matrix4x4& GetView()
         {
             if (view_modificated)
@@ -229,15 +235,14 @@ namespace Boundless::Render
     struct RenderDataPack
     {
         RenderDataPack* next;
-        RenderData d;
+        RenderObject d;
     };
     class Render
     {
     private:
-        using namespace Boundless::Resource;
         ObjectPool<RenderDataPack> render_datas;
         RenderDataPack* data_front;
-        CameraData* camera;
+        Camera* camera;
         GLFWwindow* rander_window;
         Matrix4x4 vp_mat;
     public:
@@ -250,9 +255,10 @@ namespace Boundless::Render
         * 绘制当前帧图像
         * 在调用前确保已调用glfwMakeContextCurrent()函数，设置为rander_window
         */
+
         void Draw();
         RenderData* AddRenderObject(bool enable, const MeshLoader& ml, const Transform& tr, RenderCreateFunction rcf, RenderDrawFunction drawf, RenderDestoryFunction destf)
-            inline void UseCamera(Camera* camera)
+        inline void UseCamera(Camera* camera)
         {
             this->camera = camera;
         }

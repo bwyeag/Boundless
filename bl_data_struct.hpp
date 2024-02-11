@@ -28,19 +28,6 @@
 
 namespace Boundless
 {
-    typedef float(*Math_F2)(float,float);
-    struct ptr_pack
-    {
-        size_t vertex_size;
-        size_t index_size;
-        float* vertex_ptr;
-        void* index_ptr;
-        GLenum index_type;
-        uint32_t restart_index;
-        GLsizeiptr index_count;
-    };
-    void MakeSurfaceRectangle(uint32_t x,uint32_t y,Math_F2,ptr_pack*);
-
     template<typename Type, size_t blockSize>
     class ObjectPool
     {

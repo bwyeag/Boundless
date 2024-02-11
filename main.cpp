@@ -1,9 +1,13 @@
+#include "gl_initialization.hpp"
 #include "gl_render.hpp"
+#include "error_handle.hpp"
+#include "resource_load.hpp"
 
 using namespace Boundless;
 int main()
 {
 	system("chcp 65001");
+	system("cls");
 #ifdef _DEBUG
 	std::cout << "<DEBUG>" << std::endl;
 #endif

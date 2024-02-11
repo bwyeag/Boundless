@@ -1,3 +1,4 @@
+#ifdef BL_MAKE_CONSOLE_PROGRAM
 #include "resource_load.hpp"
 #include <string>
 #include <iostream>
@@ -35,3 +36,4 @@ int main()
 	}
 	std::cout << "exit;\n";
 }
+#endif //BL_MAKE_CONSOLE_PROGRAM
