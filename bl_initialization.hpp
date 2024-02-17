@@ -1,34 +1,38 @@
 #ifndef _INITIALIZATION_HPP_FILE_
 #define _INITIALIZATION_HPP_FILE_
+#include "bl_log.hpp"
 
+#include "glad/glad.h"
+#include "GLFW/glfw3.h"
+
+#include <forward_list>
 namespace Boundless::Init
 {
     //////////////////////////////////////////////////////////////////
     //  GLFW处理部分
     //  GLFW Handle
     //
-    extern GLFWwindow *window_ptr;
+    struct WindowInfo
+    {
+        GLFWwindow *window_ptr;
+        // 窗口大小
+        unsigned int screen_width;
+        unsigned int screen_height;
 
-    void utility_errorfun(int error_code, const char *description);
-    void utility_windowposfun(GLFWwindow *window, int xpos, int ypos);
-    void utility_windowsizefun(GLFWwindow *window, int width, int height);
-    void utility_windowclosefun(GLFWwindow *window);
-    void utility_windowrefreshfun(GLFWwindow *window);
-    void utility_windowfocusfun(GLFWwindow *window, int focused);
-    void utility_windowiconifyfun(GLFWwindow *window, int iconified);
-    void utility_windowmaximizefun(GLFWwindow *window, int maximized);
-    void utility_framebuffersizefun(GLFWwindow *window, int width, int height);
-    void utility_windowcontentscalefun(GLFWwindow *window, float xscale, float yscale);
-    void utility_mousebuttonfun(GLFWwindow *window, int button, int action, int mods);
-    void utility_cursorposfun(GLFWwindow *window, double xpos, double ypos);
-    void utility_cursorenterfun(GLFWwindow *window, int entered);
-    void utility_scrollfun(GLFWwindow *window, double xoffset, double yoffset);
-    void utility_keyfun(GLFWwindow *window, int key, int scancode, int action, int mods);
-    void utility_charfun(GLFWwindow *window, unsigned int codepoint);
-    void utility_charmodsfun(GLFWwindow *window, unsigned int codepoint, int mods);
-    void utility_dropfun(GLFWwindow *window, int path_count, const char *paths[]);
-    void utility_monitorfun(GLFWmonitor *monitor, int event);
-    void utility_joystickfun(int jid, int event);
+        // 时间处理
+        double delta_time = 0.0;
+        double current_time = 0.0;
+        double last_time = 0.0;
+
+        // 鼠标信息追踪
+        double last_mouse_x = screen_width / 2.0;
+        double last_mouse_y = screen_height / 2.0;
+        double delta_mouse_x = 0.0;
+        double delta_mouse_y = 0.0;
+        bool firstMouse = true;
+    };
+    extern WindowInfo windowinfo;
+
     void AddErrorCallback(GLFWerrorfun callback);
     void AddMonitorCallback(GLFWmonitorfun callback);
     void AddWindowPosCallback(GLFWwindowposfun callback);
@@ -57,28 +61,13 @@ namespace Boundless::Init
 #define SCREEN_INIT_HEIGHT 600
 #define WINDOW_NAME "Boundless"
 
-    // 窗口大小
-    extern unsigned int screen_width;
-    extern unsigned int screen_height;
-
-    // 时间处理
-    extern double delta_tim;
-    extern double current_time;
-    extern double last_time;
-
-    // 鼠标信息追踪
-    extern double last_mouse_x;
-    extern double last_mouse_y;
-    extern double delta_mouse_x;
-    extern double delta_mouse_y;
-
     void process_input(GLFWwindow *windowptr);
     void framebuffer_size_callback(GLFWwindow *windowptr, int width, int height);
     void mouse_callback(GLFWwindow *windowptr, double xposIn, double yposIn);
 
     /// @brief 初始化OpenGL函数
     /// @return 初始化是否成功
-    bool opengl_init();
+    bool InitOpenGL();
 } // namespace Boundless::Initlization
 
 #endif //!_INITIALIZATION_HPP_FILE_

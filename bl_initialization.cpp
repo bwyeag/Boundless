@@ -1,4 +1,4 @@
-#include "gl_initlizition.hpp"
+#include "bl_initlizition.hpp"
 
 namespace Boundless::Init
 {
@@ -6,7 +6,8 @@ namespace Boundless::Init
     //  GLFW回调处理部分
     //  GLFW Callback Handle
     //
-    GLFWwindow *window_ptr;
+
+    static WindowInfo windowinfo;
 
     static std::list<GLFWframebuffersizefun> list_callback_framebuffersize;
 
@@ -31,7 +32,7 @@ namespace Boundless::Init
     static std::forward_list<GLFWmonitorfun> list_monitorfun;
     static std::forward_list<GLFWjoystickfun> list_joystickfun;
 
-    void utility_errorfun(int error_code, const char *description)
+    static void utility_errorfun(int error_code, const char *description)
     {
         for (auto val : list_errorfun)
         {
@@ -39,7 +40,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowposfun(GLFWwindow *window, int xpos, int ypos)
+    static void utility_windowposfun(GLFWwindow *window, int xpos, int ypos)
     {
         for (auto val : list_windowposfun)
         {
@@ -47,7 +48,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowsizefun(GLFWwindow *window, int width, int height)
+    static void utility_windowsizefun(GLFWwindow *window, int width, int height)
     {
         for (auto val : list_windowsizefun)
         {
@@ -55,7 +56,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowclosefun(GLFWwindow *window)
+    static void utility_windowclosefun(GLFWwindow *window)
     {
         for (auto val : list_windowclosefun)
         {
@@ -63,7 +64,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowrefreshfun(GLFWwindow *window)
+    static void utility_windowrefreshfun(GLFWwindow *window)
     {
         for (auto val : list_windowrefreshfun)
         {
@@ -71,7 +72,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowfocusfun(GLFWwindow *window, int focused)
+    static void utility_windowfocusfun(GLFWwindow *window, int focused)
     {
         for (auto val : list_windowfocusfun)
         {
@@ -79,7 +80,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowiconifyfun(GLFWwindow *window, int iconified)
+    static void utility_windowiconifyfun(GLFWwindow *window, int iconified)
     {
         for (auto val : list_windowiconifyfun)
         {
@@ -87,7 +88,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowmaximizefun(GLFWwindow *window, int maximized)
+    static void utility_windowmaximizefun(GLFWwindow *window, int maximized)
     {
         for (auto val : list_windowmaximizefun)
         {
@@ -95,7 +96,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_framebuffersizefun(GLFWwindow *window, int width, int height)
+    static void utility_framebuffersizefun(GLFWwindow *window, int width, int height)
     {
         for (auto val : list_framebuffersizefun)
         {
@@ -103,7 +104,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_windowcontentscalefun(GLFWwindow *window, float xscale, float yscale)
+    static void utility_windowcontentscalefun(GLFWwindow *window, float xscale, float yscale)
     {
         for (auto val : list_windowcontentscalefun)
         {
@@ -111,7 +112,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_mousebuttonfun(GLFWwindow *window, int button, int action, int mods)
+    static void utility_mousebuttonfun(GLFWwindow *window, int button, int action, int mods)
     {
         for (auto val : list_mousebuttonfun)
         {
@@ -119,7 +120,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_cursorposfun(GLFWwindow *window, double xpos, double ypos)
+    static void utility_cursorposfun(GLFWwindow *window, double xpos, double ypos)
     {
         for (auto val : list_cursorposfun)
         {
@@ -127,7 +128,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_cursorenterfun(GLFWwindow *window, int entered)
+    static void utility_cursorenterfun(GLFWwindow *window, int entered)
     {
         for (auto val : list_cursorenterfun)
         {
@@ -135,7 +136,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_scrollfun(GLFWwindow *window, double xoffset, double yoffset)
+    static void utility_scrollfun(GLFWwindow *window, double xoffset, double yoffset)
     {
         for (auto val : list_scrollfun)
         {
@@ -143,7 +144,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_keyfun(GLFWwindow *window, int key, int scancode, int action, int mods)
+    static void utility_keyfun(GLFWwindow *window, int key, int scancode, int action, int mods)
     {
         for (auto val : list_keyfun)
         {
@@ -151,7 +152,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_charfun(GLFWwindow *window, unsigned int codepoint)
+    static void utility_charfun(GLFWwindow *window, unsigned int codepoint)
     {
         for (auto val : list_charfun)
         {
@@ -159,7 +160,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_charmodsfun(GLFWwindow *window, unsigned int codepoint, int mods)
+    static void utility_charmodsfun(GLFWwindow *window, unsigned int codepoint, int mods)
     {
         for (auto val : list_charmodsfun)
         {
@@ -167,7 +168,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_dropfun(GLFWwindow *window, int path_count, const char *paths[])
+    static void utility_dropfun(GLFWwindow *window, int path_count, const char *paths[])
     {
         for (auto val : list_dropfun)
         {
@@ -175,7 +176,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_monitorfun(GLFWmonitor *monitor, int event)
+    static void utility_monitorfun(GLFWmonitor *monitor, int event)
     {
         for (auto val : list_monitorfun)
         {
@@ -183,7 +184,7 @@ namespace Boundless::Init
         }
     }
 
-    void utility_joystickfun(int jid, int event)
+    static void utility_joystickfun(int jid, int event)
     {
         for (auto val : list_joystickfun)
         {
@@ -354,22 +355,8 @@ namespace Boundless::Init
     //  OpenGL加载部分
     //  OpenGL Loading Handle
     //
-    // 窗口大小
-    unsigned int screen_width = SCREEN_INIT_WIDTH;
-    unsigned int screen_height = SCREEN_INIT_HEIGHT;
 
-    // 时间处理
-    double delta_time = 0.0;
-    double current_time = 0.0;
-    double last_time = 0.0;
-
-    // 鼠标信息追踪
-    double last_mouse_x = screen_width / 2.0;
-    double last_mouse_y = screen_height / 2.0;
-    double delta_mouse_x = 0.0;
-    double delta_mouse_y = 0.0;
-    bool firstMouse = true;
-
+    //几个默认的回调处理函数
     void process_input(GLFWwindow *windowptr)
     {
         if (glfwGetKey(windowptr, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -378,8 +365,8 @@ namespace Boundless::Init
 
     void framebuffer_size_callback(GLFWwindow *windowptr, int width, int height)
     {
-        screen_height = height;
-        screen_width = width;
+        windowinfo.screen_height = height;
+        windowinfo.screen_width = width;
         glViewport(0, 0, width, height);
     }
 
@@ -387,26 +374,26 @@ namespace Boundless::Init
     {
         if (firstMouse)
         {
-            last_mouse_x = xposIn;
-            last_mouse_y = yposIn;
-            firstMouse = false;
+            windowinfo.last_mouse_x = xposIn;
+            windowinfo.last_mouse_y = yposIn;
+            windowinfo.firstMouse = false;
         }
         else
         {
-            delta_mouse_x = xposIn - last_mouse_x;
-            delta_mouse_y = last_mouse_y - yposIn;
-            last_mouse_x = xposIn;
-            last_mouse_y = yposIn;
+            windowinfo.delta_mouse_x = xposIn - last_mouse_x;
+            windowinfo.delta_mouse_y = last_mouse_y - yposIn;
+            windowinfo.last_mouse_x = xposIn;
+            windowinfo.last_mouse_y = yposIn;
         }
     }
 
     /// @brief 初始化OpenGL函数
     /// @return 初始化是否成功
-    bool opengl_init()
+    bool InitOpenGL()
     {
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef _DEBUG
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
@@ -414,21 +401,24 @@ namespace Boundless::Init
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-        window_ptr = glfwCreateWindow(SCREEN_INIT_WIDTH, SCREEN_INIT_HEIGHT, WINDOW_NAME, nullptr, nullptr);
-        if (window_ptr == nullptr)
+        windowinfo.window_ptr = glfwCreateWindow(SCREEN_INIT_WIDTH, SCREEN_INIT_HEIGHT, WINDOW_NAME, nullptr, nullptr);
+        if (windowinfo.window_ptr == nullptr)
         {
-            ERROR("GLFW", "创建窗口失败")
+            ERROR("GLFW", "创建窗口失败");
             glfwTerminate();
             return false;
         }
-        glfwMakeContextCurrent(window_ptr);
+        windowinfo.screen_width = SCREEN_INIT_WIDTH;
+        windowinfo.screen_height = SCREEN_INIT_HEIGHT;
+
+        glfwMakeContextCurrent(windowinfo.window_ptr);
         // 添加回调函数
         AddFramebufferSizeCallback(framebuffer_size_callback);
         AddCursorPosCallback(mouse_callback);
 
-        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress()))
         {
-            ERROR("GLAD", "创建失败")
+            ERROR("GLAD", "创建失败");
             glfwTerminate();
             return false;
         }
@@ -439,13 +429,13 @@ namespace Boundless::Init
         {
             glEnable(GL_DEBUG_OUTPUT);
             glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-            glDebugMessageCallback(opengl_error_callback, nullptr);
+            glDebugMessageCallback(Log::OpenGLError::ErrorCallback, nullptr);
             glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-            INFO("OpenGL", "启用调试上下文成功")
+            INFO("OPENGL", "启用调试上下文成功");
         }
         else
         {
-            INFO("OpenGL", "启用调试上下文失败")
+            INFO("OPENGL", "启用调试上下文失败");
         }
 #endif
         return true;

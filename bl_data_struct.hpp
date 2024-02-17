@@ -54,11 +54,6 @@ namespace Boundless
             for (i = 0; i < init_blocks; i++)
             {
                 ptr = new obj_block();
-                if (ptr == nullptr)
-                {
-                    ERROR("MEMORY","内存耗尽!");
-                    exit(-1);
-                }
                 blockPointers[i] = ptr;
             }
             std::sort(blockPointers.begin(),blockPointers.end(),std::greater<obj_block*>());
@@ -101,10 +96,6 @@ namespace Boundless
         void alloc_block()
         {
             obj_block* ptr = new obj_block();
-            if (ptr == nullptr)
-            {
-                ERROR("MEMORY","内存耗尽!");
-            }
             blockPointers.push_back(ptr);
             std::sort(blockPointers.begin(),blockPointers.end(),std::greater<obj_block*>());
 

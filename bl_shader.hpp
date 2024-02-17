@@ -1,11 +1,15 @@
 #ifndef _GL_SHADER_HPP_FILE_
 #define _GL_SHADER_HPP_FILE_
+
+#include "bl_error_handle.hpp"
+
+#include <vector>
+#include <map>
+
+#include "glad/glad.h"
+
 namespace Boundless::Render
 {
-    //////////////////////////////////////////////////////////////////
-    //  OpenGL 着色器类
-    //  OpenGL Shader Classes
-    //
     class Shader
     {
     private:
@@ -51,7 +55,7 @@ namespace Boundless::Render
         void Use() const;
         void UnUse() const;
         void Link() const;
-        // to do:buffer块范围方法
+
         void SetUniformblockBinding(const std::string &name, GLuint index);
         GLint GetUniformblockSize(const std::string &name);
         void SetUniformblock(const std::string &name, UniformBuffer &ubo);

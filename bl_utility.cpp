@@ -5,7 +5,7 @@
  *
  */
 
-#include "gl_utility.hpp"
+#include "bl_utility.hpp"
 
 namespace Boundless
 {

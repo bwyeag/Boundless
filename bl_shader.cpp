@@ -1,4 +1,4 @@
-#include "gl_shader.hpp"
+#include "bl_shader.hpp"
 
 namespace Boundless::Render
 {
@@ -10,8 +10,8 @@ namespace Boundless::Render
         if (!reader.is_open())
         {
             this->shader_id = 0;
-            ERROR("Engine", "未能成功打开文件：")
-            ERRORINFO(path)
+            ERROR(string_RESOUR__ERROR, string_RES_FILE_LOAD_ERROR << path)
+            Log::error_handle();
             return;
         }
         std::string shader_code((std::istreambuf_iterator<char>(reader)), std::istreambuf_iterator<char>());
@@ -29,25 +29,24 @@ namespace Boundless::Render
         {
             int length;
             glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR("OpenGL", "着色器编译失败:\n着色器文件:")
-            ERRORINFO(shader_code << "\n----------------------------------------")
+            ERROR(string_OpenGL_ERROR, string_SHADER_COMPILE);
+            ERRORINFO(shader_code << string_LINE);
             char *log = (char *)malloc(sizeof(char) * length);
             if (log == nullptr)
             {
-                ERROR("Memory", "日志内存申请失败")
-                throw std::bad_alloc();
+                OUT_OF_MEMORY_ERROR;
             }
             else
             {
                 glGetShaderInfoLog(this->shader_id, length, &length, log);
-                ERROR("OpenGL", "错误信息：\n")
-                ERRORINFO("错误信息：\n"
-                          << log)
+                ERRORINFO(log << string_LINE);
                 free(log);
             }
+            Log::error_handle();
         }
     }
     Shader::Shader(const char *data, GLenum type)
+        : shader_type(type)
     {
         this->shader_id = glCreateShader(type);
         const GLint length = static_cast<GLint>(std::strlen(data));
@@ -60,22 +59,20 @@ namespace Boundless::Render
         {
             int length;
             glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR("OpenGL", "着色器编译失败:\n着色器文件:")
-            ERRORINFO(data << "\n----------------------------------------")
+            ERROR(string_OpenGL_ERROR, string_SHADER_COMPILE);
+            ERRORINFO(data << string_LINE);
             char *log = (char *)malloc(sizeof(char) * length);
             if (log == nullptr)
             {
-                ERROR("Memory", "日志内存申请失败")
-                throw std::bad_alloc();
+                OUT_OF_MEMORY_ERROR;
             }
             else
             {
                 glGetShaderInfoLog(this->shader_id, length, &length, log);
-                ERROR("OpenGL", "错误信息：\n")
-                ERRORINFO("错误信息：\n"
-                          << log)
+                ERRORINFO(log << string_LINE);
                 free(log);
             }
+            Log::error_handle();
         }
     }
 
@@ -156,18 +153,16 @@ namespace Boundless::Render
         {
             GLsizei length;
             glGetProgramiv(this->program_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR("OpenGL", "着色器程序链接错误")
+            ERROR(string_OpenGL_ERROR, string_SHADER_LINK);
             char *log = (char *)malloc(length);
             if (log == nullptr)
             {
-                ERROR("OpenGL", "日志内存申请失败")
-                throw std::bad_alloc();
+                OUT_OF_MEMORY_ERROR;
             }
             else
             {
                 glGetProgramInfoLog(this->program_id, PROGRAM_LOG_MAX_SIZE, nullptr, log);
-                ERROR("OpenGL", "错误信息：")
-                ERRORINFO(log)
+                ERRORINFO(log << string_LINE);
                 free(log);
             }
         }

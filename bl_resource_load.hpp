@@ -33,8 +33,6 @@ namespace Boundless::Resource
     using std::ios;
     using std::vector;
     using std::stack;
-
-    using namespace Boundless::Log;
 /*
 *   模型文件存储规范 2024/2/6
 *   以.mesh为后缀名
@@ -103,30 +101,34 @@ namespace Boundless::Resource
         GLsizei width,height,depth;
     };
     typedef void (*TextureLoadFunction)(GLuint,TextureHead*);  
-    class TextureLoader
+    class Texture2DLoader
     {
     private:
         ifstream texture_file;
         GLuint texture;
         TextureHead texture_info;
     public:
-        TextureLoader(const char* path, TextureLoadFunction f);
-        inline TextureLoader(string path, TextureLoadFunction f)
-            : TextureLoader(path.c_str(), f) {}
-        TextureLoader(const TextureLoader&)=delete;
-        TextureLoader(TextureLoader&&)=default;
-        TextureLoader& operator=(const TextureLoader&)=delete;
-        TextureLoader& operator=(TextureLoader&&)=default;
+        Texture2DLoader(const char* path, TextureLoadFunction f);
+        inline Texture2DLoader(string path, TextureLoadFunction f)
+            : Texture2DLoader(path.c_str(), f) {}
+        Texture2DLoader(const Texture2DLoader&)=delete;
+        Texture2DLoader(Texture2DLoader&&)=default;
+        Texture2DLoader& operator=(const Texture2DLoader&)=delete;
+        Texture2DLoader& operator=(Texture2DLoader&&)=default;
 
         inline GLuint GetTexture() {return texture;}
         void LoadFile(const char* path, TextureLoadFunction f);
     };
-#ifdef BOUNDLESS_GENERATE_FUNCTIONS
-    void GenerateInitialize();
-    void GenerateModelFile(const char* path);
-    void GenerateMeshFile(const aiMesh* ptr, const string &path);
-    void GenerateTextureFile2D(const char* path);
-#endif //BOUNDLESS_GENERATE_FUNCTIONS
+    class FileGeneraters
+    {
+    public:
+        static void GenInitialize();
+        static void GenModelFile(const char* path);
+        static void GenMeshFile(const aiMesh* ptr, const string &path);
+        static void GenTextureFile2D(const char* path);
+    };
+    
+
 } // namespace Boundless::Resource
 
 #endif //!_RESOURCE_LOAD_HPP_
