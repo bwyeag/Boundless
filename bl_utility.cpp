@@ -156,7 +156,7 @@ namespace Boundless
 #ifdef _DEBUG
         if (count > 0xFF)
         {
-            WARNING("INPUT", "count过大")
+            WARNING("INPUT", "count过大");
         }
 #endif
         this->info &= 0xFFFFFF00;
@@ -202,7 +202,7 @@ namespace Boundless
 #ifdef _DEBUG
         if (index > 0xFF)
         {
-            WARNING("INPUT","index过大")
+            WARNING("INPUT","index过大");
         } 
 #endif      
         this->info |= (index << 16);

@@ -12,7 +12,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#include "error_handle.hpp"
+#include "bl_log.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -145,7 +145,7 @@ namespace Boundless
             return 4*sizeof(GLbyte);
         default:
             ERROR("OpenGL","无法识别的类型");
-            error_handle();
+            return 0;
         }
     }
     //////////////////////////////////////////////////////////////////

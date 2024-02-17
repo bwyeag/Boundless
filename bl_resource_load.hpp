@@ -19,7 +19,7 @@
 #include <vector>
 #include <stack>
 
-#include "error_handle.hpp"
+#include "bl_log.hpp"
 
 namespace Boundless::Resource
 {
@@ -61,10 +61,10 @@ namespace Boundless::Resource
 
     typedef void (*MeshLoadFunction)(void*, MeshHead*, BufferInfoData*);
 
-    enum struct IndexStatus : uint8_t
+    enum IndexStatus
     {
-        NONE,INDEX_WITH_RESTARTINDEX,ONLY_INDEX
-    }
+        NONE = 0,INDEX_WITH_RESTARTINDEX = 1,ONLY_INDEX = 2
+    };
     class MeshLoader
     {
     private:
@@ -84,9 +84,9 @@ namespace Boundless::Resource
         MeshLoader& operator=(MeshLoader&&)=default;
 
         void LoadFile(const char* path, MeshLoadFunction f);
-        inline IndexStatus GetIndexStatus() const {return has_index;};
+        inline IndexStatus GetIndexStatus() const {return index_status;};
         inline bool HasOtherBuffers() const {return has_other_buffers;};
-        inline const vector<GLuint>& GetBuffers() const {return buffers};
+        inline const vector<GLuint>& GetBuffers() const {return buffers;};
         inline uint64_t GetRestartIndex() const {return restart_index;};
     };
 
@@ -121,13 +121,14 @@ namespace Boundless::Resource
     };
     class FileGeneraters
     {
+#ifdef BOUNDLESS_GENERATE_FUNCTIONS
     public:
         static void GenInitialize();
         static void GenModelFile(const char* path);
         static void GenMeshFile(const aiMesh* ptr, const string &path);
         static void GenTextureFile2D(const char* path);
+#endif //BOUNDLESS_GENERATE_FUNCTIONS
     };
-    
 
 } // namespace Boundless::Resource
 

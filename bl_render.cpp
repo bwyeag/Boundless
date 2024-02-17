@@ -19,7 +19,7 @@ namespace Boundless::Render
         destory_function = rfp.destory_function;
         rfp.create_function(mesh, fp);
     }
-    void Initialize(bool enable, const TransformDataPack &tdp, Mesh *meshptr, const RenderFunctionPack &rfp, void *fp)
+    void RenderObject::Initialize(bool enable, const TransformDataPack &tdp, Mesh *meshptr, const RenderFunctionPack &rfp, void *fp)
     {
         function_pointer = fp;
         this->enable = enable;
@@ -45,14 +45,14 @@ namespace Boundless::Render
         destory_function(mesh, function_pointer);
     }
 
-    Render::Render(Camera &camera, GLFWwindow *rander_window)
+    Renderer::Renderer(Camera *camera, GLFWwindow *rander_window)
         : render_datas(RENDER_INIT_BLOCKS)
     {
-        this->camera = &camera;
+        this->camera = camera;
         data_front = nullptr;
         this->rander_window = rander_window;
     }
-    void Render::Draw()
+    void Renderer::Draw()
     {
         glClearColor(RENDER_CLEAR_COLOR);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -63,10 +63,5 @@ namespace Boundless::Render
             t->d.Draw(vp_mat);
         }
         glfwSwapBuffers(rander_window);
-    }
-    RenderObject *Render::AddRenderObject()
-    {
-        RenderDataPack *ptrp = render_datas.allocate();
-        return &ptrp->d;
     }
 } // namespace Boundless::Render

@@ -102,4 +102,4 @@ run: all
 	@echo Executing 'run: all' complete!
 
 console:
-	$(CXX) bl_console.cpp bl_resource_load.cpp -oconsole -O3 -Llibraries -lglad -lassimp -lzlib
+	$(CXX) bl_console.cpp bl_resource_load.cpp -oconsole -O3 -Llibraries -lglad -lassimp -lzlib -DBL_MAKE_CONSOLE_PROGRAM

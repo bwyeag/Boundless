@@ -1,4 +1,4 @@
-#include "bl_initlizition.hpp"
+#include "bl_initialization.hpp"
 
 namespace Boundless::Init
 {
@@ -7,7 +7,7 @@ namespace Boundless::Init
     //  GLFW Callback Handle
     //
 
-    static WindowInfo windowinfo;
+    WindowInfo windowinfo;
 
     static std::list<GLFWframebuffersizefun> list_callback_framebuffersize;
 
@@ -211,7 +211,7 @@ namespace Boundless::Init
     {
         if (list_windowposfun.empty())
         {
-            glfwSetWindowPosCallback(window_ptr, utility_windowposfun);
+            glfwSetWindowPosCallback(windowinfo.window_ptr, utility_windowposfun);
         }
         list_windowposfun.push_front(callback);
     }
@@ -219,7 +219,7 @@ namespace Boundless::Init
     {
         if (list_windowsizefun.empty())
         {
-            glfwSetWindowSizeCallback(window_ptr, utility_windowsizefun);
+            glfwSetWindowSizeCallback(windowinfo.window_ptr, utility_windowsizefun);
         }
         list_windowsizefun.push_front(callback);
     }
@@ -227,7 +227,7 @@ namespace Boundless::Init
     {
         if (list_windowclosefun.empty())
         {
-            glfwSetWindowCloseCallback(window_ptr, utility_windowclosefun);
+            glfwSetWindowCloseCallback(windowinfo.window_ptr, utility_windowclosefun);
         }
         list_windowclosefun.push_front(callback);
     }
@@ -235,7 +235,7 @@ namespace Boundless::Init
     {
         if (list_windowrefreshfun.empty())
         {
-            glfwSetWindowRefreshCallback(window_ptr, utility_windowrefreshfun);
+            glfwSetWindowRefreshCallback(windowinfo.window_ptr, utility_windowrefreshfun);
         }
         list_windowrefreshfun.push_front(callback);
     }
@@ -243,7 +243,7 @@ namespace Boundless::Init
     {
         if (list_windowfocusfun.empty())
         {
-            glfwSetWindowFocusCallback(window_ptr, utility_windowfocusfun);
+            glfwSetWindowFocusCallback(windowinfo.window_ptr, utility_windowfocusfun);
         }
         list_windowfocusfun.push_front(callback);
     }
@@ -251,7 +251,7 @@ namespace Boundless::Init
     {
         if (list_windowiconifyfun.empty())
         {
-            glfwSetWindowIconifyCallback(window_ptr, utility_windowiconifyfun);
+            glfwSetWindowIconifyCallback(windowinfo.window_ptr, utility_windowiconifyfun);
         }
         list_windowiconifyfun.push_front(callback);
     }
@@ -259,7 +259,7 @@ namespace Boundless::Init
     {
         if (list_windowmaximizefun.empty())
         {
-            glfwSetWindowMaximizeCallback(window_ptr, utility_windowmaximizefun);
+            glfwSetWindowMaximizeCallback(windowinfo.window_ptr, utility_windowmaximizefun);
         }
         list_windowmaximizefun.push_front(callback);
     }
@@ -267,7 +267,7 @@ namespace Boundless::Init
     {
         if (list_framebuffersizefun.empty())
         {
-            glfwSetFramebufferSizeCallback(window_ptr, utility_framebuffersizefun);
+            glfwSetFramebufferSizeCallback(windowinfo.window_ptr, utility_framebuffersizefun);
         }
         list_framebuffersizefun.push_front(callback);
     }
@@ -275,7 +275,7 @@ namespace Boundless::Init
     {
         if (list_windowcontentscalefun.empty())
         {
-            glfwSetWindowContentScaleCallback(window_ptr, utility_windowcontentscalefun);
+            glfwSetWindowContentScaleCallback(windowinfo.window_ptr, utility_windowcontentscalefun);
         }
         list_windowcontentscalefun.push_front(callback);
     }
@@ -283,7 +283,7 @@ namespace Boundless::Init
     {
         if (list_keyfun.empty())
         {
-            glfwSetKeyCallback(window_ptr, utility_keyfun);
+            glfwSetKeyCallback(windowinfo.window_ptr, utility_keyfun);
         }
         list_keyfun.push_front(callback);
     }
@@ -291,7 +291,7 @@ namespace Boundless::Init
     {
         if (list_charfun.empty())
         {
-            glfwSetCharCallback(window_ptr, utility_charfun);
+            glfwSetCharCallback(windowinfo.window_ptr, utility_charfun);
         }
         list_charfun.push_front(callback);
     }
@@ -299,7 +299,7 @@ namespace Boundless::Init
     {
         if (list_charmodsfun.empty())
         {
-            glfwSetCharModsCallback(window_ptr, utility_charmodsfun);
+            glfwSetCharModsCallback(windowinfo.window_ptr, utility_charmodsfun);
         }
         list_charmodsfun.push_front(callback);
     }
@@ -307,7 +307,7 @@ namespace Boundless::Init
     {
         if (list_mousebuttonfun.empty())
         {
-            glfwSetMouseButtonCallback(window_ptr, utility_mousebuttonfun);
+            glfwSetMouseButtonCallback(windowinfo.window_ptr, utility_mousebuttonfun);
         }
         list_mousebuttonfun.push_front(callback);
     }
@@ -315,7 +315,7 @@ namespace Boundless::Init
     {
         if (list_cursorposfun.empty())
         {
-            glfwSetCursorPosCallback(window_ptr, utility_cursorposfun);
+            glfwSetCursorPosCallback(windowinfo.window_ptr, utility_cursorposfun);
         }
         list_cursorposfun.push_front(callback);
     }
@@ -323,7 +323,7 @@ namespace Boundless::Init
     {
         if (list_cursorenterfun.empty())
         {
-            glfwSetCursorEnterCallback(window_ptr, utility_cursorenterfun);
+            glfwSetCursorEnterCallback(windowinfo.window_ptr, utility_cursorenterfun);
         }
         list_cursorenterfun.push_front(callback);
     }
@@ -331,7 +331,7 @@ namespace Boundless::Init
     {
         if (list_scrollfun.empty())
         {
-            glfwSetScrollCallback(window_ptr, utility_scrollfun);
+            glfwSetScrollCallback(windowinfo.window_ptr, utility_scrollfun);
         }
         list_scrollfun.push_front(callback);
     }
@@ -339,7 +339,7 @@ namespace Boundless::Init
     {
         if (list_dropfun.empty())
         {
-            glfwSetDropCallback(window_ptr, utility_dropfun);
+            glfwSetDropCallback(windowinfo.window_ptr, utility_dropfun);
         }
         list_dropfun.push_front(callback);
     }
@@ -372,7 +372,7 @@ namespace Boundless::Init
 
     void mouse_callback(GLFWwindow *windowptr, double xposIn, double yposIn)
     {
-        if (firstMouse)
+        if (windowinfo.firstMouse)
         {
             windowinfo.last_mouse_x = xposIn;
             windowinfo.last_mouse_y = yposIn;
@@ -380,8 +380,8 @@ namespace Boundless::Init
         }
         else
         {
-            windowinfo.delta_mouse_x = xposIn - last_mouse_x;
-            windowinfo.delta_mouse_y = last_mouse_y - yposIn;
+            windowinfo.delta_mouse_x = xposIn - windowinfo.last_mouse_x;
+            windowinfo.delta_mouse_y = windowinfo.last_mouse_y - yposIn;
             windowinfo.last_mouse_x = xposIn;
             windowinfo.last_mouse_y = yposIn;
         }
@@ -416,7 +416,7 @@ namespace Boundless::Init
         AddFramebufferSizeCallback(framebuffer_size_callback);
         AddCursorPosCallback(mouse_callback);
 
-        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress()))
+        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         {
             ERROR("GLAD", "创建失败");
             glfwTerminate();

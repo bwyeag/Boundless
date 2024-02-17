@@ -38,7 +38,7 @@ namespace Boundless::Log
     static const char *const str_SHADER_COMPILE = "着色器编译失败:\n着色器文件:";
     static const char *const str_SHADER_LINK = "着色器程序链接错误";
 
-    static const char *OpenGLError::GetObjectType(GLenum o)
+    const char *OpenGLError::GetObjectType(GLenum o)
     {
         switch (o)
         {
@@ -68,7 +68,7 @@ namespace Boundless::Log
             return str_null;
         }
     }
-    static const char *OpenGLError::GetSourceFrom(GLenum s)
+    const char *OpenGLError::GetSourceFrom(GLenum s)
     {
         switch (s)
         {
@@ -88,7 +88,7 @@ namespace Boundless::Log
             return str_null;
         }
     }
-    static const char *OpenGLError::GetSourceType(GLenum s)
+    const char *OpenGLError::GetSourceType(GLenum s)
     {
         switch (s)
         {
@@ -114,7 +114,7 @@ namespace Boundless::Log
             return str_null;
         }
     }
-    static const char *OpenGLError::GetSeverity(GLenum s)
+    const char *OpenGLError::GetSeverity(GLenum s)
     {
         switch (s)
         {
@@ -131,15 +131,14 @@ namespace Boundless::Log
         }
     }
 
-    static void OpenGLError::ErrorCallback(GLenum source, GLenum type, GLuint id,
-                                           GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+    void OpenGLError::ErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
     {
         if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
             return;
         const char *char_source = GetSourceFrom(source);
         const char *char_type = GetSourceType(type);
         const char *char_severity = GetSeverity(severity);
-        ERROR("OpenGL", char_severity << ">from " << char_source << ";type " << char_type << ";id " << id << ";\n"
-                                      << message)
+        ERROR("OpenGL", char_severity , ">from " , char_source , ";type " , char_type , ";id " , id , ";\n"
+                                      , message);
     }
 } // namespace Boundless

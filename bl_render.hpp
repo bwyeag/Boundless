@@ -2,11 +2,6 @@
 #define _RENDER_HPP_FILE_
 #include "glad/glad.h"
 #include "glfw/glfw3.h"
-#include "glm/glm.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-
-#include <iostream>
 
 #include "bl_data_struct.hpp"
 #include "bl_resource_load.hpp"
@@ -16,10 +11,6 @@
 
 namespace Boundless::Render
 {
-    using Vector3 = glm::vec3;
-    using Quaternion = glm::quat;
-    using Matrix4x4 = glm::mat4;
-
     /// @brief 传递模型数据
     struct TransformDataPack
     {
@@ -36,7 +27,7 @@ namespace Boundless::Render
     {
     private:
         /// @brief 记录当前修改状态
-        bool modificated;
+        mutable bool modificated;
         /// @brief 位置
         Vector3 position;
         /// @brief 缩放
@@ -70,7 +61,7 @@ namespace Boundless::Render
         void Initialize(const TransformDataPack &tdp);
 
         /// @brief 标记修改状态(在修改之前调用)
-        inline void Modificate() { modificated = true; }
+        inline void Modificate() const { modificated = true; }
         inline void SetPosition(const Vector3 &n) { position = n; }
         inline void SetScale(const Vector3 &n) { scale = n; }
         inline void SetRotation(const Quaternion &n) { rotation = n; }
@@ -108,11 +99,11 @@ namespace Boundless::Render
         RenderDrawFunction draw_function;
         RenderDestoryFunction destory_function;
     };
+    using Resource::IndexStatus;
     /// @brief 渲染对象
     class RenderObject
     {
     private:
-        using Resource::IndexStatus;
         bool enable;
         Transform transform;
         Mesh mesh;
@@ -142,9 +133,9 @@ namespace Boundless::Render
         void Destroy();
     };
 
-#define RENDER_INIT_BLOCKS 32
+#define RENDER_INIT_BLOCKS 8
 #define RENDER_CLEAR_COLOR 0.0f, 0.0f, 0.0f, 1.0f
-    class Render
+    class Renderer
     {
     private:
         struct RenderDataPack
@@ -159,11 +150,11 @@ namespace Boundless::Render
         Matrix4x4 vp_mat;
 
     public:
-        Render(CameraData *camera, GLFWwindow *rander_window);
-        Render(Render &&) = default;
-        Render(const Render &) = delete;
-        Render &operator=(Render &&) = default;
-        Render &operator=(const Render &) = delete;
+        Renderer(Camera *camera, GLFWwindow *rander_window);
+        Renderer(Renderer &&) = default;
+        Renderer(const Renderer &) = delete;
+        Renderer &operator=(Renderer &&) = default;
+        Renderer &operator=(const Renderer &) = delete;
         /*
          * 绘制当前帧图像
          * 在调用前确保已调用glfwMakeContextCurrent()函数，设置为rander_window

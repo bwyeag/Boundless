@@ -1,12 +1,13 @@
 #ifndef _GL_SHADER_HPP_FILE_
 #define _GL_SHADER_HPP_FILE_
-
-#include "bl_error_handle.hpp"
+#include "glad/glad.h"
+#include "glm/glm.hpp"
+#include "bl_log.hpp"
 
 #include <vector>
 #include <map>
-
-#include "glad/glad.h"
+#include <fstream>
+#include <cstring>
 
 namespace Boundless::Render
 {
@@ -56,10 +57,6 @@ namespace Boundless::Render
         void UnUse() const;
         void Link() const;
 
-        void SetUniformblockBinding(const std::string &name, GLuint index);
-        GLint GetUniformblockSize(const std::string &name);
-        void SetUniformblock(const std::string &name, UniformBuffer &ubo);
-        void SetUniformblock(const std::string &name, UniformBuffer &ubo, const data_range &range);
         // 设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
         void SetTexture(const std::string &name, GLint unit);
         // 设置布尔值

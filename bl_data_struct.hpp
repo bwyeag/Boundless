@@ -6,7 +6,6 @@
  */
 #ifndef _BOUNDLESS_DATA_STRUCT_HPP_FILE_
 #define _BOUNDLESS_DATA_STRUCT_HPP_FILE_
-#include <omp.h>
 #include "glad/glad.h"
 
 #include <cstdint>
@@ -19,26 +18,22 @@
 #include <list>
 #include <algorithm>
 
-#define ERROR(type, info) std::cerr << "[ERROR][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
-#define ERRORINFO(info) std::cerr << "[ERROR]other:" << info << std::endl
-#define WARNING(type, info) std::cerr << "[WARNING][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
-#define WARNINGINFO(info) std::cerr << "[WARNING]other:" << info << std::endl
-#define INFO(type, info) std::cout << "[INFO][" << type << "]file:" << __FILE__ << ";line:" << __LINE__ << "|info:" << info << std::endl
-#define INFODATA(info) std::cout << "[INFO]other:" << info << std::endl
+#include "bl_log.hpp"
 
 namespace Boundless
 {
-    template<typename Type, size_t blockSize>
+    template<typename Type, size_t blockSize = 128>
     class ObjectPool
     {
     private:
+        union block
+        {
+            Type* ptr;
+            Type obj;
+        };
         struct obj_block
         {
-            union block
-            {
-                Type* ptr;
-                Type obj;
-            } data[blockSize];
+            block data[blockSize];
         };
         std::vector<obj_block*> blockPointers;
         Type* nullobjRoot;
@@ -53,7 +48,12 @@ namespace Boundless
             size_t i,j;
             for (i = 0; i < init_blocks; i++)
             {
-                ptr = new obj_block();
+                ptr = (obj_block*)malloc(sizeof(obj_block));
+                if (ptr==nullptr)
+                {
+                    ERROR("Memory","内存耗尽");
+                    return;
+                }
                 blockPointers[i] = ptr;
             }
             std::sort(blockPointers.begin(),blockPointers.end(),std::greater<obj_block*>());
@@ -95,7 +95,12 @@ namespace Boundless
         }
         void alloc_block()
         {
-            obj_block* ptr = new obj_block();
+            obj_block* ptr = (obj_block*)malloc(sizeof(obj_block));
+            if (ptr==nullptr)
+            {
+                ERROR("Memory","内存耗尽");
+                return;
+            }
             blockPointers.push_back(ptr);
             std::sort(blockPointers.begin(),blockPointers.end(),std::greater<obj_block*>());
 
@@ -121,7 +126,7 @@ namespace Boundless
         {
             for (size_t i = 0; i < blockPointers.size(); i++)
             {
-                delete blockPointers[i];
+                free(blockPointers[i]);
             }
             nullobjRoot = nullptr;
         }

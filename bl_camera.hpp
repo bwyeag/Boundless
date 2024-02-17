@@ -1,8 +1,17 @@
 #ifndef _CAMERA_HPP_FILE_
 #define _CAMERA_HPP_FILE_
+#include "glad/glad.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+
+#include "bl_log.hpp"
 
 namespace Boundless::Render
 {
+    using Vector3 = glm::vec3;
+    using Quaternion = glm::quat;
+    using Matrix4x4 = glm::mat4;
     /// @brief 摄像机投影类型
     enum struct ViewType
     {
@@ -61,11 +70,11 @@ namespace Boundless::Render
             {
                 if (type == ViewType::PERSPECTIVE)
                 {
-                    projection_mat = glm::perspective(perfov, perk, znear, zfar);
+                    projection_mat = glm::perspective(pers_fov, pers_k, znear, zfar);
                 }
                 else
                 {
-                    projection_mat = glm::ortho(ortleft, ortright, ortbottom, orttop, znear, zfar);
+                    projection_mat = glm::ortho(ortho_left, ortho_right, ortho_bottom, ortho_top, znear, zfar);
                 }
                 proj_modificated = false;
             }

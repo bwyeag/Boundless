@@ -33,9 +33,9 @@ namespace Boundless::Resource
 } // namespace Boundless::Resource
 namespace Boundless::Render
 {
+    using Resource::IndexStatus;
     struct Mesh
     {
-        using Resource::IndexStatus;
         GLuint vertex_array;
         GLuint vertex_buffer, index_buffer;
         GLuint restart_index;

@@ -90,7 +90,7 @@ namespace Boundless::Resource
             memcpy(wdata, (uint8_t *)tar + head_data.vertex_start, head_data.vertex_length);
             glUnmapNamedBuffer(buffers[0]);
 
-            if (has_index)
+            if (index_status>0)
             {
                 glNamedBufferStorage(buffers[1], head_data.index_length, nullptr, GL_MAP_WRITE_BIT);
                 char *wdata = (char *)glMapNamedBuffer(buffers[1], GL_WRITE_ONLY);
@@ -98,7 +98,7 @@ namespace Boundless::Resource
                 glUnmapNamedBuffer(buffers[1]);
             }
 
-            GLuint *bptr = &buffers[has_index ? 2 : 1];
+            GLuint *bptr = &buffers[index_status>0 ? 2 : 1];
             for (uint32_t i = 0; i < head_data.buffer_count; i++)
             {
                 glNamedBufferStorage(bptr[i], bufferdata[i].length, nullptr, GL_MAP_WRITE_BIT);
@@ -180,8 +180,11 @@ namespace Boundless::Resource
             glTextureSubImage3D(texture, 0, 0, 0, 0, texture_info.width, texture_info.height, texture_info.depth, texture_info.gl_format, texture_info.gl_type, (uint8_t *)tar + sizeof(TextureHead));
             break;
         default:
-            ERROR(RES_ERROR, RES_TEXTURE_TYPE_ERROR << count);
-            break;
+            texture_file.close();
+            free(src);
+            free(tar);
+            ERROR("Resource", "纹理维度错误" ,count);
+            return;
         }
         free(src);
         free(tar);
@@ -191,7 +194,7 @@ namespace Boundless::Resource
         }
         texture_file.close();
     }
-
+#ifdef BOUNDLESS_GENERATE_FUNCTIONS
     void FileGeneraters::GenInitialize()
     {
         stbi_set_flip_vertically_on_load(true);
@@ -427,4 +430,5 @@ namespace Boundless::Resource
         file.close();
         cout << "END FILE;" << endl;
     }
+#endif //BOUNDLESS_GENERATE_FUNCTIONS
 } // namespace Boundless::Resource

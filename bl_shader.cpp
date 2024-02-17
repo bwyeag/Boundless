@@ -10,8 +10,7 @@ namespace Boundless::Render
         if (!reader.is_open())
         {
             this->shader_id = 0;
-            ERROR(string_RESOUR__ERROR, string_RES_FILE_LOAD_ERROR << path)
-            Log::error_handle();
+            ERROR("Resource", "无法打开文件:", path);
             return;
         }
         std::string shader_code((std::istreambuf_iterator<char>(reader)), std::istreambuf_iterator<char>());
@@ -29,20 +28,18 @@ namespace Boundless::Render
         {
             int length;
             glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR(string_OpenGL_ERROR, string_SHADER_COMPILE);
-            ERRORINFO(shader_code << string_LINE);
             char *log = (char *)malloc(sizeof(char) * length);
             if (log == nullptr)
             {
-                OUT_OF_MEMORY_ERROR;
+                ERROR("Memory/OpenGL", "内存耗尽/着色器编译错误:", shader_code, "\n--------------------------------");
             }
             else
             {
                 glGetShaderInfoLog(this->shader_id, length, &length, log);
-                ERRORINFO(log << string_LINE);
+                ERROR("OpenGL", "着色器编译错误:", shader_code, "\n--------------------------------", log, "\n--------------------------------");
                 free(log);
             }
-            Log::error_handle();
+            return;
         }
     }
     Shader::Shader(const char *data, GLenum type)
@@ -59,20 +56,17 @@ namespace Boundless::Render
         {
             int length;
             glGetShaderiv(this->shader_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR(string_OpenGL_ERROR, string_SHADER_COMPILE);
-            ERRORINFO(data << string_LINE);
             char *log = (char *)malloc(sizeof(char) * length);
             if (log == nullptr)
             {
-                OUT_OF_MEMORY_ERROR;
+                ERROR("Memory/OpenGL", "内存耗尽/着色器编译错误:", data, "\n--------------------------------");
             }
             else
             {
                 glGetShaderInfoLog(this->shader_id, length, &length, log);
-                ERRORINFO(log << string_LINE);
+                ERROR("OpenGL", "着色器编译错误", data, "\n--------------------------------", log, "\n--------------------------------");
                 free(log);
             }
-            Log::error_handle();
         }
     }
 
@@ -153,56 +147,27 @@ namespace Boundless::Render
         {
             GLsizei length;
             glGetProgramiv(this->program_id, GL_INFO_LOG_LENGTH, &length);
-            ERROR(string_OpenGL_ERROR, string_SHADER_LINK);
             char *log = (char *)malloc(length);
             if (log == nullptr)
             {
-                OUT_OF_MEMORY_ERROR;
+                ERROR("Memory/OpenGL", "内存耗尽/着色器链接错误");
             }
             else
             {
                 glGetProgramInfoLog(this->program_id, PROGRAM_LOG_MAX_SIZE, nullptr, log);
-                ERRORINFO(log << string_LINE);
+                ERROR("OpenGL","着色器链接错误:", log, "\n--------------------------------");
                 free(log);
             }
         }
     }
 #endif
-    void Program::SetUniformblockBinding(const std::string &name, GLuint index)
-    {
-        GLint location = GetUniformBlockLocation(name);
-        if (location != -1)
-            glUniformBlockBinding(this->program_id, location, index);
-    }
-    GLint Program::GetUniformblockSize(const std::string &name)
-    {
-        GLint location = GetUniformBlockLocation(name), size;
-        if (location == -1)
-            return 0;
-        glGetActiveUniformBlockiv(program_id, location, GL_UNIFORM_BLOCK_DATA_SIZE, &size);
-        return size;
-    }
-    void Program::SetUniformblock(const std::string &name, UniformBuffer &ubo)
-    {
-        GLint location = GetUniformBlockLocation(name);
-        if (location == -1)
-            return;
-        ubo.Bind();
-        glBindBufferBase(GL_UNIFORM_BUFFER, location, GLuint(ubo));
-    }
-    void Program::SetUniformblock(const std::string &name, UniformBuffer &ubo, const data_range &range)
-    {
-        GLint location = GetUniformBlockLocation(name);
-        if (location == -1)
-            return;
-        glBindBufferRange(GL_UNIFORM_BUFFER, location, GLuint(ubo), range.offset, range.length);
-    }
+
     // 设置纹理，使value对应的纹理单元被使用（注：先glActiveTexture）
-    void Program::SetTexture(const std::string &name, GLint unit)
+    void Program::SetTexture(const std::string &name, GLint value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform1i(location, unit);
+            glUniform1i(location, value);
     }
     // 设置布尔值
     void Program::SetBool(const std::string &name, GLboolean value)
@@ -281,21 +246,21 @@ namespace Boundless::Render
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform2fv(location, count, (GLfloat*)value);
+            glUniform2fv(location, count, (GLfloat *)value);
     }
     // 设置三维向量数组（float）
     void Program::SetVec3Array(const std::string &name, GLsizei count, const glm::vec3 *value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform3fv(location, count, (GLfloat*)value);
+            glUniform3fv(location, count, (GLfloat *)value);
     }
     // 设置四维向量数组（float）
     void Program::SetVec4Array(const std::string &name, GLsizei count, const glm::vec4 *value)
     {
         GLint location = GetUniformLocation(name);
         if (location != -1)
-            glUniform4fv(location, count, (GLfloat*)value);
+            glUniform4fv(location, count, (GLfloat *)value);
     }
     // 设置2*2矩阵（float）
     void Program::SetMat2(const std::string &name, const glm::mat2 &mat)
