@@ -23,13 +23,11 @@ namespace Boundless::Render
     {
     private:
         bool view_modificated, proj_modificated;
-
+    public:
         /// @brief 摄像机位置
         Vector3 position;
         /// @brief 摄像机上/前向量
         Vector3 dir_up, dir_front;
-        /// @brief 摄像机视图矩阵
-        Matrix4x4 view_mat;
 
         /// @brief 摄像机投影类型(透视/正交)
         ViewType type;
@@ -41,19 +39,14 @@ namespace Boundless::Render
         float pers_fov;
         /// @brief 正交模式时的左/右/下/上位置
         float ortho_left, ortho_right, ortho_bottom, ortho_top;
+    private:
+        /// @brief 摄像机视图矩阵
+        Matrix4x4 view_mat;
         /// @brief 摄像机投影矩阵
         Matrix4x4 projection_mat;
-
     public:
         inline void ModificateView() { view_modificated = true; }
-
         inline void ModificateProj() { proj_modificated = true; }
-        inline void SetViewType(ViewType vt) { type = vt; }
-        inline void SetNearPlane(float n) { znear = n; }
-        inline void SetFarPlane(float n) { zfar = n; }
-        inline void SetRatio(float h, float w) { pers_k = h / w; }
-
-        inline Vector3 GetPosition() const { return position; }
         inline const Matrix4x4 &GetView()
         {
             if (view_modificated)
@@ -63,7 +56,6 @@ namespace Boundless::Render
             }
             return view_mat;
         }
-
         inline const Matrix4x4 &GetProjection()
         {
             if (proj_modificated)
