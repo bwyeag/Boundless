@@ -90,7 +90,7 @@ namespace Boundless::Resource
             memcpy(wdata, (uint8_t *)tar + head_data.vertex_start, head_data.vertex_length);
             glUnmapNamedBuffer(buffers[0]);
 
-            if (index_status>0)
+            if (index_status > 0)
             {
                 glNamedBufferStorage(buffers[1], head_data.index_length, nullptr, GL_MAP_WRITE_BIT);
                 char *wdata = (char *)glMapNamedBuffer(buffers[1], GL_WRITE_ONLY);
@@ -98,7 +98,7 @@ namespace Boundless::Resource
                 glUnmapNamedBuffer(buffers[1]);
             }
 
-            GLuint *bptr = &buffers[index_status>0 ? 2 : 1];
+            GLuint *bptr = &buffers[index_status > 0 ? 2 : 1];
             for (uint32_t i = 0; i < head_data.buffer_count; i++)
             {
                 glNamedBufferStorage(bptr[i], bufferdata[i].length, nullptr, GL_MAP_WRITE_BIT);
@@ -183,7 +183,7 @@ namespace Boundless::Resource
             texture_file.close();
             free(src);
             free(tar);
-            ERROR("Resource", "纹理维度错误" ,count);
+            ERROR("Resource", "纹理维度错误", count);
             return;
         }
         free(src);
@@ -382,7 +382,7 @@ namespace Boundless::Resource
         file.open(p, ios::binary | ios::out | ios::trunc);
         if (!file.is_open())
         {
-            ERROR("Resource", "无法创建文件:",p);
+            ERROR("Resource", "无法创建文件:", p);
             return;
         }
 
@@ -394,18 +394,18 @@ namespace Boundless::Resource
         void *compressdata = malloc(head);
         if (before == nullptr || compressdata == nullptr)
         {
-            if (before!=nullptr)
+            if (before != nullptr)
             {
                 free(before);
             }
-            if (compressdata!=nullptr)
+            if (compressdata != nullptr)
             {
                 free(compressdata);
             }
             ERROR("Memory", "内存耗尽");
             return;
         }
-        
+
         memcpy(before, &th, sizeof(TextureHead));
         memcpy((uint8_t *)before + sizeof(TextureHead), data, data_length);
         stbi_image_free(data);
@@ -430,5 +430,5 @@ namespace Boundless::Resource
         file.close();
         cout << "END FILE;" << endl;
     }
-#endif //BOUNDLESS_GENERATE_FUNCTIONS
+#endif // BOUNDLESS_GENERATE_FUNCTIONS
 } // namespace Boundless::Resource

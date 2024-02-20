@@ -1,17 +1,14 @@
-#ifndef _LOG_HPP_FILE_
-#define _LOG_HPP_FILE_
+#ifndef _BOUNDLESS_LOG_HPP_FILE_
+#define _BOUNDLESS_LOG_HPP_FILE_
 
 #include "glad/glad.h"
 #include <cstdlib>
 #include <cassert>
 #include <iostream>
 
-namespace Boundless::Log
+namespace Boundless
 {
-    inline void ErrorHandle()
-    {
-        exit(EXIT_FAILURE);
-    }
+    void ErrorHandle();
     template <typename... args>
     void PrintError(const char *type, const char *file, int line, const args &...arguments)
     {
@@ -35,14 +32,13 @@ namespace Boundless::Log
     #define WARNING(type, ...) Boundless::Log::PrintWarning(type, __FILE__, __LINE__, ##__VA_ARGS__)
     #define INFO(type, ...) Boundless::Log::PrintInfomation(type, __FILE__, __LINE__, ##__VA_ARGS__)
 
-    class OpenGLError
+    namespace OpenGLError
     {
-    public:
         static const char *GetObjectType(GLenum o);
         static const char *GetSourceFrom(GLenum s);
         static const char *GetSourceType(GLenum s);
         static const char *GetSeverity(GLenum s);
         static void ErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
-    };
+    }
 }
-#endif //!_LOG_HPP_FILE_
+#endif //!_BOUNDLESS_LOG_HPP_FILE_

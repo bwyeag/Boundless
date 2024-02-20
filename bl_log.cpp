@@ -1,7 +1,11 @@
 #include "bl_log.hpp"
 
-namespace Boundless::Log
+namespace Boundless
 {
+    inline void ErrorHandle()
+    {
+        exit(EXIT_FAILURE);
+    }
     /*OpenGL错误文本*/
     static const char *const str_BUFFER = "缓存区对象";
     static const char *const str_SHADER = "着色器对象";
