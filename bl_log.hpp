@@ -28,9 +28,9 @@ namespace Boundless
         std::cout << "[INFOMATION][" << type << "]file:" << file << ";line:" << line << "|info:";
         (std::cout << ... << arguments) << std::endl;
     }
-    #define ERROR(type, ...) Boundless::Log::PrintError(type, __FILE__, __LINE__, ##__VA_ARGS__)
-    #define WARNING(type, ...) Boundless::Log::PrintWarning(type, __FILE__, __LINE__, ##__VA_ARGS__)
-    #define INFO(type, ...) Boundless::Log::PrintInfomation(type, __FILE__, __LINE__, ##__VA_ARGS__)
+    #define ERROR(type, ...) Boundless::PrintError(type, __FILE__, __LINE__, ##__VA_ARGS__)
+    #define WARNING(type, ...) Boundless::PrintWarning(type, __FILE__, __LINE__, ##__VA_ARGS__)
+    #define INFO(type, ...) Boundless::PrintInfomation(type, __FILE__, __LINE__, ##__VA_ARGS__)
 
     namespace OpenGLError
     {
