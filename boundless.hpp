@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <exception>
 #include <fstream>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -96,20 +98,20 @@ class Mesh {
     GLuint GetIBO();
     friend void LoadMesh(const Byte* data, size_t length, Mesh& mesh);
     friend void LoadMesh(std::ifstream& in, Mesh& mesh);
-    friend void LoadMesh(const std::string& path, Mesh& mesh);
+    friend void LoadMesh(std::string_view path, Mesh& mesh);
     friend void LoadMesh(const char* path, Mesh& mesh);
-    friend void LoadMeshMultple(const std::string& path,
+    friend void LoadMeshMultple(std::string_view path,
                                 std::vector<Mesh>& meshs);
     friend void LoadMeshMultple(const char* path, std::vector<Mesh>& meshs);
     friend Byte* PackMesh(size_t* ret_length, const Mesh& mesh);
-    friend void PackMesh(const std::string& path, const Mesh& mesh);
-    static void GenMeshFile(const aiMesh* ptr, const std::string& save_path);
+    friend void PackMesh(std::string_view path, const Mesh& mesh);
+    static void GenMeshFile(const aiMesh* ptr, std::string_view save_path);
     static Byte* GenMeshFile(const aiMesh* ptr,
-                             const std::string& name,
+                             std::string_view name,
                              size_t* ret_length);
-    static void GenMeshFile(const std::string& path);
+    static void GenMeshFile(std::string_view path);
     static void GenMeshFile(const char* path);
-    static void GenMeshFileMerged(const std::string& path);
+    static void GenMeshFileMerged(std::string_view path);
     static void GenMeshFileMerged(const char* path);
     ~Mesh();
 };
@@ -147,22 +149,42 @@ const GLboolean default_texture_fixedsamplelocation = GL_FALSE;
 class Texture {
    private:
     GLuint texture_id;
-    GLenum type;
-    GLenum format;
+    GLenum target;
     GLsizei width, height, depth;
 
    public:
+    // 构造函数，不做任何事，使用LoadTexture()函数加载
     Texture();
     ~Texture();
 
     friend void LoadTexture(
-        const std::string& path,
+        std::string_view path,
         Texture& tex,
         GLsizei add_mipmap_level = 0,
         GLsizei samples = default_texture_samples,
         GLboolean fixedsample = default_texture_fixedsamplelocation);
-    friend void PackTexture(const std::string& save_path, Texture& tex);
-    static void GenTextureFile(const std::string& path);
+    friend void LoadTexture(
+        const char* path,
+        Texture& tex,
+        GLsizei add_mipmap_level = 0,
+        GLsizei samples = default_texture_samples,
+        GLboolean fixedsample = default_texture_fixedsamplelocation);
+    friend void PackTexture(std::string_view save_path,
+                            Texture& tex,
+                            GLsizei level,  // 打包的纹理mipmap层级数
+                            GLenum format,  // 输出的纹元格式
+                            GLenum type);   // 纹元数据类型
+    friend Byte* PackTexture(size_t* ret_length,
+                             Texture& tex,
+                             GLsizei level,
+                             GLenum format,
+                             GLenum type);
+    friend void PackTexture(const char* save_path,
+                            Texture& tex,
+                            GLsizei level,
+                            GLenum format,
+                            GLenum type);
+    static void GenTextureFile(std::string_view path);
     static void GenTextureFile(const char* path);
 };
 
@@ -179,8 +201,8 @@ class Program {
     mutable std::unordered_map<std::string, GLint> uniformmap;
 
     void PrintLog() const;
-    GLint GetUniformLocation(const std::string& target) const;
-    GLint GetUniformBlockLocation(const std::string& target) const;
+    GLint GetUniformLocation(std::string_view target) const;
+    GLint GetUniformBlockLocation(std::string_view target) const;
 
    public:
     Program();
@@ -191,99 +213,95 @@ class Program {
     Shader& operator[](size_t index);
     ~Program();
 
-    void AddShader(const std::string& path, GLenum type);
+    void AddShader(std::string_view path, GLenum type);
     void Link() const;
 
     void Use() const;
     static void UnUse() const;
 
-    static GLuint LoadShader(const std::string& path, GLenum type);
+    static GLuint LoadShader(std::string_view path, GLenum type);
     static GLuint LoadShader(const char* path, GLenum type);
 
-    void SetTexture(const std::string& name, GLint unit);
-    void SetBool(const std::string& name, GLboolean value);
-    void SetInt(const std::string& name, GLint value);
-    void SetUint(const std::string& name, GLuint value);
-    void SetFloat(const std::string& name, GLfloat value);
-    void SetVec2(const std::string& name, const glm::vec2& value);
-    void SetVec2(const std::string& name, GLfloat x, GLfloat y);
-    void SetVec3(const std::string& name, const glm::vec3& value);
-    void SetVec3(const std::string& name, GLfloat x, GLfloat y, GLfloat z);
-    void SetVec4(const std::string& name, const glm::vec4& value);
-    void SetVec4(const std::string& name,
+    void SetTexture(std::string_view name, GLint unit);
+    void SetBool(std::string_view name, GLboolean value);
+    void SetInt(std::string_view name, GLint value);
+    void SetUint(std::string_view name, GLuint value);
+    void SetFloat(std::string_view name, GLfloat value);
+    void SetVec2(std::string_view name, const glm::vec2& value);
+    void SetVec2(std::string_view name, GLfloat x, GLfloat y);
+    void SetVec3(std::string_view name, const glm::vec3& value);
+    void SetVec3(std::string_view name, GLfloat x, GLfloat y, GLfloat z);
+    void SetVec4(std::string_view name, const glm::vec4& value);
+    void SetVec4(std::string_view name,
                  GLfloat x,
                  GLfloat y,
                  GLfloat z,
                  GLfloat w);
-    void SetVec2Array(const std::string& name,
+    void SetVec2Array(std::string_view name,
                       GLsizei count,
                       const glm::vec2* value);
-    void SetVec3Array(const std::string& name,
+    void SetVec3Array(std::string_view name,
                       GLsizei count,
                       const glm::vec3* value);
-    void SetVec4Array(const std::string& name,
+    void SetVec4Array(std::string_view name,
                       GLsizei count,
                       const glm::vec4* value);
-    void SetMat2(const std::string& name, const glm::mat2& mat);
-    void SetMat3(const std::string& name, const glm::mat3& mat);
-    void SetMat4(const std::string& name, const glm::mat4& mat);
-    void SetMat2Array(const std::string& name,
+    void SetMat2(std::string_view name, const glm::mat2& mat);
+    void SetMat3(std::string_view name, const glm::mat3& mat);
+    void SetMat4(std::string_view name, const glm::mat4& mat);
+    void SetMat2Array(std::string_view name,
                       GLsizei count,
                       const glm::mat2* mat);
-    void SetMat3Array(const std::string& name,
+    void SetMat3Array(std::string_view name,
                       GLsizei count,
                       const glm::mat3* mat);
-    void SetMat4Array(const std::string& name,
+    void SetMat4Array(std::string_view name,
                       GLsizei count,
                       const glm::mat4* mat);
-    void SetDouble(const std::string& name, GLdouble value);
-    void SetVec2(const std::string& name, const glm::dvec2& value);
-    void SetVec2Array(const std::string& name,
+    void SetDouble(std::string_view name, GLdouble value);
+    void SetVec2(std::string_view name, const glm::dvec2& value);
+    void SetVec2Array(std::string_view name,
                       GLsizei count,
                       const glm::dvec2* value);
-    void SetVec2(const std::string& name, GLdouble x, GLdouble y);
-    void SetVec3(const std::string& name, const glm::dvec3& value);
-    void SetVec3Array(const std::string& name,
+    void SetVec2(std::string_view name, GLdouble x, GLdouble y);
+    void SetVec3(std::string_view name, const glm::dvec3& value);
+    void SetVec3Array(std::string_view name,
                       GLsizei count,
                       const glm::dvec3* value);
-    void SetVec3(const std::string& name, GLdouble x, GLdouble y, GLdouble z);
-    void SetVec4(const std::string& name, const glm::dvec4& value);
-    void SetVec4Array(const std::string& name,
+    void SetVec3(std::string_view name, GLdouble x, GLdouble y, GLdouble z);
+    void SetVec4(std::string_view name, const glm::dvec4& value);
+    void SetVec4Array(std::string_view name,
                       GLsizei count,
                       const glm::dvec4* value);
-    void SetVec4(const std::string& name,
+    void SetVec4(std::string_view name,
                  GLdouble x,
                  GLdouble y,
                  GLdouble z,
                  GLdouble w);
-    void SetMat2(const std::string& name, const glm::dmat2& mat);
-    void SetMat3(const std::string& name, const glm::dmat3& mat);
-    void SetMat4(const std::string& name, const glm::dmat4& mat);
-    void SetMat2Array(const std::string& name,
+    void SetMat2(std::string_view name, const glm::dmat2& mat);
+    void SetMat3(std::string_view name, const glm::dmat3& mat);
+    void SetMat4(std::string_view name, const glm::dmat4& mat);
+    void SetMat2Array(std::string_view name,
                       GLsizei count,
                       const glm::dmat2* mat);
-    void SetMat3Array(const std::string& name,
+    void SetMat3Array(std::string_view name,
                       GLsizei count,
                       const glm::dmat3* mat);
-    void SetMat4Array(const std::string& name,
+    void SetMat4Array(std::string_view name,
                       GLsizei count,
                       const glm::dmat4* mat);
-    void SetVec2(const std::string& name, const glm::ivec2& value);
-    void SetVec2(const std::string& name, GLint x, GLint y);
-    void SetVec3(const std::string& name, const glm::ivec3& value);
-    void SetVec3(const std::string& name, GLint x, GLint y, GLint z);
-    void SetVec4(const std::string& name, const glm::ivec4& value);
-    void SetVec4(const std::string& name, GLint x, GLint y, GLint z, GLint w);
-    void SetVec2(const std::string& name, const glm::uvec2& value);
-    void SetVec2(const std::string& name, GLuint x, GLuint y);
-    void SetVec3(const std::string& name, const glm::uvec3& value);
-    void SetVec3(const std::string& name, GLuint x, GLuint y, GLuint z);
-    void SetVec4(const std::string& name, const glm::uvec4& value);
-    void SetVec4(const std::string& name,
-                 GLuint x,
-                 GLuint y,
-                 GLuint z,
-                 GLuint w);
+    void SetVec2(std::string_view name, const glm::ivec2& value);
+    void SetVec2(std::string_view name, GLint x, GLint y);
+    void SetVec3(std::string_view name, const glm::ivec3& value);
+    void SetVec3(std::string_view name, GLint x, GLint y, GLint z);
+    void SetVec4(std::string_view name, const glm::ivec4& value);
+    void SetVec4(std::string_view name, GLint x, GLint y, GLint z, GLint w);
+    void SetVec2(std::string_view name, const glm::uvec2& value);
+    void SetVec2(std::string_view name, GLuint x, GLuint y);
+    void SetVec3(std::string_view name, const glm::uvec3& value);
+    void SetVec3(std::string_view name, GLuint x, GLuint y, GLuint z);
+    void SetVec4(std::string_view name, const glm::uvec4& value);
+    void SetVec4(std::string_view name, GLuint x, GLuint y, GLuint z, GLuint w);
 };
 
 }  // namespace Boundless

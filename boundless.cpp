@@ -114,7 +114,7 @@ void LoadMesh(std::ifstream& in, Mesh& mesh) {
     LoadMesh(data, length, mesh);
     free(data);
 }
-inline void LoadMesh(const std::string& path, Mesh& mesh) {
+inline void LoadMesh(std::string_view path, Mesh& mesh) {
     std::ifstream fin(path, std::ios::in | std::ios::binary);
     if (!fin.is_open()) {
         throw std::runtime_error("Cannot open file:" + path);
@@ -123,9 +123,9 @@ inline void LoadMesh(const std::string& path, Mesh& mesh) {
     fin.close();
 }
 inline void LoadMesh(const char* path, Mesh& mesh) {
-    LoadMesh(std::string(path), mesh);
+    LoadMesh(std::string_view(path), mesh);
 }
-void LoadMeshMultple(const std::string& path, std::vector<Mesh>& meshs) {
+void LoadMeshMultple(std::string_view path, std::vector<Mesh>& meshs) {
     std::ifstream fin(path, std::ios::in | std::ios::binary);
     if (!fin.is_open()) {
         throw std::runtime_error("Cannot open file:" + path);
@@ -144,7 +144,7 @@ void LoadMeshMultple(const std::string& path, std::vector<Mesh>& meshs) {
     fin.close();
 }
 void LoadMeshMultple(const char* path, std::vector<Mesh>& meshs) {
-    LoadMeshMultple(std::string(path), meshs);
+    LoadMeshMultple(std::string_view(path), meshs);
 }
 Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
     size_t full_size =
@@ -203,7 +203,7 @@ Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
     *ret_length = full_size;
     return res;
 }
-void PackMesh(const std::string& path, const Mesh& mesh) {
+void PackMesh(std::string_view path, const Mesh& mesh) {
     size_t length;
     Byte* data = PackMesh(&length, mesh);
     std::ofstream fout(path,
@@ -227,7 +227,7 @@ void Mesh::GenMeshFile(const aiMesh* ptr, const string& save_path) {
     fout.close();
 }
 Byte* Mesh::GenMeshFile(const aiMesh* pointer,
-                        const std::string& name,
+                        std::string_view name,
                         size_t* ret_length) {
     MeshFile head;
     head.restart_index = UINT64_MAX;
@@ -327,7 +327,7 @@ Byte* Mesh::GenMeshFile(const aiMesh* pointer,
     *ret_length = length + sizeof(uint64);
     return data;
 }
-void Mesh::GenMeshFile(const std::string& path) {
+void Mesh::GenMeshFile(std::string_view path) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, assimp_load_process);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
@@ -335,15 +335,15 @@ void Mesh::GenMeshFile(const std::string& path) {
         throw std::runtime_error(importer.GetErrorString());
     }
     for (size_t i = 0; i < scene->mNumMeshes; i++) {
-        GenMeshFile(scene->mMeshes[i], path + std::to_string(i) +
+        GenMeshFile(scene->mMeshes[i], std::string(path) + std::to_string(i) +
                                            scene->mMeshes[i]->mName.C_Str() +
                                            ".mesh");
     }
 }
 inline void Mesh::GenMeshFile(const char* path) {
-    GenMeshFile(std::string(path));
+    GenMeshFile(std::string_view(path));
 }
-void Mesh::GenMeshFileMerged(const std::string& path) {
+void Mesh::GenMeshFileMerged(std::string_view path) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, assimp_load_process);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
@@ -371,7 +371,7 @@ void Mesh::GenMeshFileMerged(const std::string& path) {
     }
 }
 inline void Mesh::GenMeshFileMerged(const char* path) {
-    GenMeshFileMerged(std::string(path));
+    GenMeshFileMerged(std::string_view(path));
 }
 Mesh::~Mesh() {
     glDeleteVertexArrays(1, &vertex_array);
@@ -388,7 +388,7 @@ Texture::~Texture() {
     glDeleteTextures(1, &texture_id);
 }
 
-void LoadTexture(const std::string& path,
+void LoadTexture(std::string_view path,
                  Texture& tex,
                  GLsizei add_mipmap_level,
                  GLsizei samples,
@@ -422,6 +422,14 @@ void LoadTexture(const std::string& path,
 
     TextureFileN& tf = *(TextureFileN*)data;
     glCreateTextures(tf.target, 1, &tex.texture_id);
+    tex.target = tf.target;
+    tex.width = tf.mip[0].width;
+    tex.height = tf.mip[0].height;
+    tex.depth = tf.mip[0].depth;
+    if (tf.enable_swizzle == GL_TRUE) {
+        glTextureParameteriv(tex.texture_id, GL_TEXTURE_SWIZZLE_RGBA,
+                             tf.swizzle);
+    }
     if (tf.target == GL_TEXTURE_1D) {
         glTextureStorage1D(tex.texture_id, tf.mipLevels + add_mipmap_level,
                            tf.internal_format, tf.mip[0].width);
@@ -488,15 +496,206 @@ void LoadTexture(const std::string& path,
             WARNING("OpenGL", "多重采样纹理不应含有mipmap");
         }
     }
-    if (tf.enable_swizzle == GL_TRUE) {
-        glTextureParameteriv(tex.texture_id, GL_TEXTURE_SWIZZLE_RGBA,
-                             tf.swizzle);
+}
+inline void LoadTexture(
+    const char* path,
+    Texture& tex,
+    GLsizei add_mipmap_level = 0,
+    GLsizei samples = default_texture_samples,
+    GLboolean fixedsample = default_texture_fixedsamplelocation) {
+    LoadTexture(std::string_view(path), tex, add_mipmap_level, samples,
+                fixedsample);
+}
+void PackTexture(std::string_view save_path,
+                 Texture& tex,
+                 GLsizei level,
+                 GLenum format,
+                 GLenum type) {
+    size_t length;
+    Byte* data = PackTexture(&length, tex, level, format, type);
+    std::ofstream out(save_path,
+                      std::ios::out | std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        throw std::runtime_error("Connot open out file");
+    }
+    out.write((char*)data, length);
+    out.close();
+    free(data);
+}
+constexpr size_t TextureInternalFormatSize(GLenum type) {
+    if (GL_R3_G3_B2 || GL_R8 || GL_R8_SNORM || GL_R8I || GL_R8UI || GL_RGBA2) {
+        return 1;
+    } else if (GL_R16 || GL_R16_SNORM || GL_R16F || GL_R16I || GL_R16UI ||
+               GL_RG16 || GL_RG8 || GL_RG8_SNORM || GL_RG8I || GL_RG8UI ||
+               GL_RGB5_A1 || GL_RGB565 || GL_RGBA4) {
+        return 2;
+    } else if (GL_RGB8 || GL_RGB8_SNORM || GL_RGB8I || GL_RGB8UI || GL_SRGB8) {
+        return 3;
+    } else if (GL_R11F_G11F_B10F || GL_R32F || GL_R32I || GL_R32UI ||
+               GL_RG16_SNORM || GL_RG16F || GL_RG16I || GL_RG16UI ||
+               GL_RGB10_A2 || GL_RGB9_E5 || GL_RGBA8 || GL_RGBA8_SNORM ||
+               GL_RGBA8I || GL_RGBA8UI || GL_SRGB8_ALPHA8 || GL_RGB16) {
+        return 4;
+    } else if (GL_RGB16_SNORM || GL_RGB16F || GL_RGB16I || GL_RGB16UI ||
+               GL_RGBA12) {
+        return 6;
+    } else if (GL_RG32F || GL_RG32I || GL_RG32UI || GL_RGBA16 ||
+               GL_RGBA16_SNORM || GL_RGBA16F || GL_RGBA16I || GL_RGBA16I ||
+               GL_RGBA16UI) {
+        return 8;
+    } else if (GL_RGB32F || GL_RGB32I || GL_RGB32UI) {
+        return 12;
+    } else if (GL_RGBA32F || GL_RGBA32I || GL_RGBA32UI) {
+        return 16;
+    } else {
+        return 0;
     }
 }
-void Texture::GenTextureFile(const std::string& path) {
-    GenTextureFile(path.c_str());
+constexpr size_t TypeSize(GLenum type) {
+    switch (type) {
+        case GL_BYTE:
+            return 1;
+        case GL_UNSIGNED_BYTE:
+            return 1;
+        case GL_SHORT:
+            return 2;
+        case GL_UNSIGNED_SHORT:
+            return 2;
+        case GL_INT:
+            return 4;
+        case GL_UNSIGNED_INT:
+            return 4;
+        case GL_HALF_FLOAT:
+            return 2;
+        case GL_FLOAT:
+            return 4;
+        case GL_DOUBLE:
+            return 8;
+    }
+    return 0;
 }
-inline void Texture::GenTextureFile(const char* path) {
+constexpr size_t TextureExternalFormatSize(GLenum format, GLenum type) {
+    size_t res;
+    if (format == GL_RED || format == GL_GREEN || format == GL_BLUE ||
+        format == GL_RED_INTEGER || format == GL_GREEN_INTEGER ||
+        format == GL_BLUE_INTEGER) {
+        res = 1;
+    } else if (format == GL_RG || format == GL_RG_INTEGER) {
+        res = 2;
+    } else if (format == GL_RGB || format == GL_RGB_INTEGER) {
+        res = 3;
+    } else if (format == GL_RGBA || format == GL_RGBA_INTEGER) {
+        res = 4;
+    }
+    res *= TypeSize(type);
+    return res;
+}
+Byte* PackTexture(size_t* ret_length,
+                  Texture& tex,
+                  GLsizei level,
+                  GLenum format,
+                  GLenum type) {
+    // 统计纹理文件数据的长度
+    size_t length = sizeof(TextureFileN) + sizeof(TextureMipData) * level,
+           maxlen = 0;
+    TextureMipData mips[level];  // 暂存mipmap数据
+    size_t format_size, cnt;
+    format_size =
+        TextureExternalFormatSize(format, type);  // 存储单个像素点的数据长度
+    // 遍历每一层mipmap，获取其长宽高
+    for (GLsizei i = 0; i < level; i++) {
+        glGetTextureLevelParameteriv(tex.texture_id, i, GL_TEXTURE_WIDTH,
+                                     (GLint*)&mips[i].width);
+        if (mips[i].width == 0) {
+            throw std::runtime_error("纹理宽度不能为0");
+        }
+        cnt = mips[i].width;
+        glGetTextureLevelParameteriv(tex.texture_id, i, GL_TEXTURE_HEIGHT,
+                                     (GLint*)&mips[i].height);
+        if (mips[i].height != 0) {
+            cnt *= mips[i].height;
+        }
+        glGetTextureLevelParameteriv(tex.texture_id, i, GL_TEXTURE_DEPTH,
+                                     (GLint*)&mips[i].depth);
+        if (mips[i].depth != 0) {
+            cnt *= mips[i].depth;
+        }
+        mips[i].range.length = cnt * format_size;
+        if (mips[i].range.length > maxlen) {
+            maxlen = miplen[i];
+        }
+        length += mips[i].range.length;
+    }
+    Byte *data = (Byte*)malloc(length), cur = data;
+    if (!data) {
+        throw std::bad_alloc();
+    }
+    TextureFileN& head = *(TextureFileN*)data;
+    cur += sizeof(TextureFileN) + sizeof(TextureMipData) * level;
+
+    GLuint ppb;
+    glCreateBuffers(1, &ppb);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, ppb);
+    glNamedBufferStorage(ppb, maxlen, nullptr, GL_MAP_READ_BIT);
+    // 读取纹理数据
+    for (GLsizei i = 0; i < level; i++) {
+        glGetTextureImage(tex.texture_id, i, format, type, maxlen, 0);
+        void* map = glMapNamedBuffer(ppb, GL_READ_ONLY);
+        memcpy(cur, map, miplen[i]);
+        glUnmapNamedBuffer(ppb);
+        head.mip[i].range.start = cur - data;
+        cur += head.mip[i].range.length;
+    }
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    glDeleteBuffers(1, &ppb);
+    // 生成TextureFile头数据
+    memcpy(head.mip, mips, sizeof(TextureMipData) * level);
+    head.target = tex.target;
+    glGetTextureLevelParameteriv(tex.texture_id, i, GL_TEXTURE_INTERNAL_FORMAT,
+                                 (GLint*)&head.internal_format);
+    head.format = format;
+    head.type = type;
+    glGetTextureParameterIuiv(tex.texture_id, i, GL_TEXTURE_SWIZZLE_RGBA,
+                              head.swizzle);
+    // 检查是否需要RGBA乱序
+    if (head.swizzle[0] == GL_RED && head.swizzle[1] == GL_GREEN &&
+        head.swizzle[2] == GL_BLUE && head.swizzle[3] == GL_ALPHA) {
+        head.enable_swizzle = GL_FALSE;
+    } else {
+        head.enable_swizzle = GL_TRUE;
+    }
+    head.mipLevels = level;
+    // 根据纹理类型设置切片数据
+    if (tex.target == GL_TEXTURE_1D_ARRAY) {
+        head.slices = head.mip[0].height;
+        for (GLsizei i = 0; i < level; i++) {
+            head.mip[i].range.length /= head.slices;
+        }
+    } else if (tex.target == GL_TEXTURE_2D_ARRAY ||
+               tex.target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY ||
+               tex.target == GL_TEXTURE_CUBE_MAP ||
+               tex.target == GL_TEXTURE_CUBE_MAP_ARRAY) {
+        head.slices = head.mip[0].depth;
+        for (GLsizei i = 0; i < level; i++) {
+            head.mip[i].range.length /= head.slices;
+        }
+    }
+    head.totalSize =
+        length - sizeof(TextureFileN) - sizeof(TextureMipData) * level;
+    // 压缩
+    Byte* compress = CompressData(data, &length, sizeof(uint64));
+    free(data);
+    *(uint64*)compress = TEXTURE_HEADER;
+    return compress;
+}
+inline void PackTexture(const char* save_path,
+                        Texture& tex,
+                        GLsizei level,
+                        GLenum format,
+                        GLenum type) {
+    PackTexture(std::string_view(path), tex, level, format, type);
+}
+inline void Texture::GenTextureFile(std::string_view path) {
     TextureFile<1> tf;
     tf.target = GL_TEXTURE_2D;
     tf.type = GL_UNSIGNED_BYTE;
@@ -556,6 +755,9 @@ inline void Texture::GenTextureFile(const char* path) {
     out.write((char*)compress, size);
     out.close();
 }
+void Texture::GenTextureFile(const char* path) {
+    GenTextureFile(std::string_view(path));
+}
 inline Program::Program() {
     program_id = glCreateProgram();
 }
@@ -582,7 +784,7 @@ void Program::PrintLog() const {
         }
     }
 }
-void Program::AddShader(const std::string& path, GLenum type) {
+void Program::AddShader(std::string_view path, GLenum type) {
     GLuint shader_id = Program::LoadShader(path, type);
     glAttachShader(program_id, shader_id);
     program_shader.push_back({type, shader_id});
@@ -599,7 +801,7 @@ inline void Program::UnUse() const {
     glUseProgram(0);
 }
 
-static GLuint Program::LoadShader(const std::string& path, GLenum type) {
+static GLuint Program::LoadShader(std::string_view path, GLenum type) {
     std::ifstream reader(path, std::ios::in);
     if (!reader.is_open()) {
         throw std::runtime_error("Cannot open file.");
@@ -632,81 +834,78 @@ static GLuint Program::LoadShader(const std::string& path, GLenum type) {
     return shader_id;
 }
 static inline GLuint Program::LoadShader(const char* path, GLenum type) {
-    return LoadShader(std::string(path), type);
+    return LoadShader(std::string_view(path), type);
 }
 
-GLint Program::GetUniformLocation(const std::string& target) const {
+GLint Program::GetUniformLocation(std::string_view target) const {
     if (uniformmap.find(target) != uniformmap.end())
-        return uniformmap[target];
+        return uniformmap[std::string(target)];
     GLint location = glGetUniformLocation(this->program_id, target.c_str());
     if (location != -1)
-        uniformmap[target] = location;
+        uniformmap[std::string(target)] = location;
     return location;
 }
-GLint Program::GetUniformBlockLocation(const std::string& target) const {
+GLint Program::GetUniformBlockLocation(std::string_view target) const {
     if (uniformmap.find(target) != uniformmap.end())
-        return uniformmap[target];
+        return uniformmap[std::string(target)];
     GLint location = glGetUniformBlockIndex(this->program_id, target.c_str());
     if (location != -1)
-        uniformmap[target] = location;
+        uniformmap[std::string(target)] = location;
     return location;
 }
-void Program::SetTexture(const std::string& name, GLint value) {
+void Program::SetTexture(std::string_view name, GLint value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform1i(location, value);
 }
-void Program::SetBool(const std::string& name, GLboolean value) {
+void Program::SetBool(std::string_view name, GLboolean value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform1i(location, (int)value);
 }
-void Program::SetInt(const std::string& name, GLint value) {
+void Program::SetInt(std::string_view name, GLint value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform1i(location, value);
 }
-void Program::SetUint(const std::string& name, GLuint value) {
+void Program::SetUint(std::string_view name, GLuint value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform1ui(location, value);
 }
-void Program::SetFloat(const std::string& name, GLfloat value) {
+void Program::SetFloat(std::string_view name, GLfloat value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform1f(location, value);
 }
-void Program::SetVec2(const std::string& name, const glm::vec2& value) {
+void Program::SetVec2(std::string_view name, const glm::vec2& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2fv(location, 1, &value[0]);
 }
-void Program::SetVec2(const std::string& name, GLfloat x, GLfloat y) {
+void Program::SetVec2(std::string_view name, GLfloat x, GLfloat y) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2f(location, x, y);
 }
 
-void Program::SetVec3(const std::string& name, const glm::vec3& value) {
+void Program::SetVec3(std::string_view name, const glm::vec3& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3fv(location, 1, &value[0]);
 }
-void Program::SetVec3(const std::string& name,
-                      GLfloat x,
-                      GLfloat y,
-                      GLfloat z) {
+void Program::SetVec3(std::string_view name, GLfloat x, GLfloat y, GLfloat z) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3f(location, x, y, z);
 }
 
-void Program::SetVec4(const std::string& name, const glm::vec4& value) {
+void Program::SetVec4(std::string_view name, const glm::vec4& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform4fv(location, 1, &value[0]);
 }
-void Program::SetVec4(const std::string& name,
+void Program::SetVec4(std::string_view name,
                       GLfloat x,
                       GLfloat y,
                       GLfloat z,
@@ -715,99 +914,99 @@ void Program::SetVec4(const std::string& name,
     if (location != -1)
         glUniform4f(location, x, y, z, w);
 }
-void Program::SetVec2Array(const std::string& name,
+void Program::SetVec2Array(std::string_view name,
                            GLsizei count,
                            const glm::vec2* value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2fv(location, count, (GLfloat*)value);
 }
-void Program::SetVec3Array(const std::string& name,
+void Program::SetVec3Array(std::string_view name,
                            GLsizei count,
                            const glm::vec3* value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3fv(location, count, (GLfloat*)value);
 }
-void Program::SetVec4Array(const std::string& name,
+void Program::SetVec4Array(std::string_view name,
                            GLsizei count,
                            const glm::vec4* value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform4fv(location, count, (GLfloat*)value);
 }
-void Program::SetMat2(const std::string& name, const glm::mat2& mat) {
+void Program::SetMat2(std::string_view name, const glm::mat2& mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix2fv(location, 1, GL_FALSE, &mat[0][0]);
 }
-void Program::SetMat3(const std::string& name, const glm::mat3& mat) {
+void Program::SetMat3(std::string_view name, const glm::mat3& mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix3fv(location, 1, GL_FALSE, &mat[0][0]);
 }
-void Program::SetMat4(const std::string& name, const glm::mat4& mat) {
+void Program::SetMat4(std::string_view name, const glm::mat4& mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix4fv(location, 1, GL_FALSE, &mat[0][0]);
 }
-void Program::SetMat2Array(const std::string& name,
+void Program::SetMat2Array(std::string_view name,
                            GLsizei count,
                            const glm::mat2* mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix2fv(location, count, GL_FALSE, (GLfloat*)mat);
 }
-void Program::SetMat3Array(const std::string& name,
+void Program::SetMat3Array(std::string_view name,
                            GLsizei count,
                            const glm::mat3* mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix3fv(location, count, GL_FALSE, (GLfloat*)mat);
 }
-void Program::SetMat4Array(const std::string& name,
+void Program::SetMat4Array(std::string_view name,
                            GLsizei count,
                            const glm::mat4* mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix4fv(location, count, GL_FALSE, (GLfloat*)mat);
 }
-void Program::SetDouble(const std::string& name, GLdouble value) {
+void Program::SetDouble(std::string_view name, GLdouble value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform1d(location, value);
 }
-void Program::SetVec2(const std::string& name, const glm::dvec2& value) {
+void Program::SetVec2(std::string_view name, const glm::dvec2& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2dv(location, 1, &value[0]);
 }
-void Program::SetVec2Array(const std::string& name,
+void Program::SetVec2Array(std::string_view name,
                            GLsizei count,
                            const glm::dvec2* value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2dv(location, count, (GLdouble*)value);
 }
-void Program::SetVec2(const std::string& name, GLdouble x, GLdouble y) {
+void Program::SetVec2(std::string_view name, GLdouble x, GLdouble y) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2d(location, x, y);
 }
 
-void Program::SetVec3(const std::string& name, const glm::dvec3& value) {
+void Program::SetVec3(std::string_view name, const glm::dvec3& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3dv(location, 1, &value[0]);
 }
-void Program::SetVec3Array(const std::string& name,
+void Program::SetVec3Array(std::string_view name,
                            GLsizei count,
                            const glm::dvec3* value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3dv(location, count, (GLdouble*)value);
 }
-void Program::SetVec3(const std::string& name,
+void Program::SetVec3(std::string_view name,
                       GLdouble x,
                       GLdouble y,
                       GLdouble z) {
@@ -816,19 +1015,19 @@ void Program::SetVec3(const std::string& name,
         glUniform3d(location, x, y, z);
 }
 
-void Program::SetVec4(const std::string& name, const glm::dvec4& value) {
+void Program::SetVec4(std::string_view name, const glm::dvec4& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform4dv(location, 1, &value[0]);
 }
-void Program::SetVec4Array(const std::string& name,
+void Program::SetVec4Array(std::string_view name,
                            GLsizei count,
                            const glm::dvec4* value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform4dv(location, count, (GLdouble*)value);
 }
-void Program::SetVec4(const std::string& name,
+void Program::SetVec4(std::string_view name,
                       GLdouble x,
                       GLdouble y,
                       GLdouble z,
@@ -838,68 +1037,68 @@ void Program::SetVec4(const std::string& name,
         glUniform4d(location, x, y, z, w);
 }
 
-void Program::SetMat2(const std::string& name, const glm::dmat2& mat) {
+void Program::SetMat2(std::string_view name, const glm::dmat2& mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix2dv(location, 1, GL_FALSE, &mat[0][0]);
 }
-void Program::SetMat3(const std::string& name, const glm::dmat3& mat) {
+void Program::SetMat3(std::string_view name, const glm::dmat3& mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix3dv(location, 1, GL_FALSE, &mat[0][0]);
 }
-void Program::SetMat4(const std::string& name, const glm::dmat4& mat) {
+void Program::SetMat4(std::string_view name, const glm::dmat4& mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix4dv(location, 1, GL_FALSE, &mat[0][0]);
 }
-void Program::SetMat2Array(const std::string& name,
+void Program::SetMat2Array(std::string_view name,
                            GLsizei count,
                            const glm::dmat2* mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix2dv(location, count, GL_FALSE, (GLdouble*)mat);
 }
-void Program::SetMat3Array(const std::string& name,
+void Program::SetMat3Array(std::string_view name,
                            GLsizei count,
                            const glm::dmat3* mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix3dv(location, count, GL_FALSE, (GLdouble*)mat);
 }
-void Program::SetMat4Array(const std::string& name,
+void Program::SetMat4Array(std::string_view name,
                            GLsizei count,
                            const glm::dmat4* mat) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniformMatrix4dv(location, count, GL_FALSE, (GLdouble*)mat);
 }
-void Program::SetVec2(const std::string& name, const glm::ivec2& value) {
+void Program::SetVec2(std::string_view name, const glm::ivec2& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2iv(location, 1, &value[0]);
 }
-void Program::SetVec2(const std::string& name, GLint x, GLint y) {
+void Program::SetVec2(std::string_view name, GLint x, GLint y) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2i(location, x, y);
 }
-void Program::SetVec3(const std::string& name, const glm::ivec3& value) {
+void Program::SetVec3(std::string_view name, const glm::ivec3& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3iv(location, 1, &value[0]);
 }
-void Program::SetVec3(const std::string& name, GLint x, GLint y, GLint z) {
+void Program::SetVec3(std::string_view name, GLint x, GLint y, GLint z) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3i(location, x, y, z);
 }
-void Program::SetVec4(const std::string& name, const glm::ivec4& value) {
+void Program::SetVec4(std::string_view name, const glm::ivec4& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform4iv(location, 1, &value[0]);
 }
-void Program::SetVec4(const std::string& name,
+void Program::SetVec4(std::string_view name,
                       GLint x,
                       GLint y,
                       GLint z,
@@ -908,32 +1107,32 @@ void Program::SetVec4(const std::string& name,
     if (location != -1)
         glUniform4i(location, x, y, z, w);
 }
-void Program::SetVec2(const std::string& name, const glm::uvec2& value) {
+void Program::SetVec2(std::string_view name, const glm::uvec2& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2uiv(location, 1, &value[0]);
 }
-void Program::SetVec2(const std::string& name, GLuint x, GLuint y) {
+void Program::SetVec2(std::string_view name, GLuint x, GLuint y) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform2ui(location, x, y);
 }
-void Program::SetVec3(const std::string& name, const glm::uvec3& value) {
+void Program::SetVec3(std::string_view name, const glm::uvec3& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3uiv(location, 1, &value[0]);
 }
-void Program::SetVec3(const std::string& name, GLuint x, GLuint y, GLuint z) {
+void Program::SetVec3(std::string_view name, GLuint x, GLuint y, GLuint z) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform3ui(location, x, y, z);
 }
-void Program::SetVec4(const std::string& name, const glm::uvec4& value) {
+void Program::SetVec4(std::string_view name, const glm::uvec4& value) {
     GLint location = GetUniformLocation(name);
     if (location != -1)
         glUniform4uiv(location, 1, &value[0]);
 }
-void Program::SetVec4(const std::string& name,
+void Program::SetVec4(std::string_view name,
                       GLuint x,
                       GLuint y,
                       GLuint z,

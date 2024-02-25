@@ -12,6 +12,7 @@
 using namespace Boundless;
 int main()
 {
+	std::cout.sync_with_stdio(false);
 	system("chcp 65001");
 	system("cls");
 #ifdef _DEBUG
@@ -21,29 +22,6 @@ int main()
 	{
 		exit(EXIT_FAILURE);
 	}
-	
-	Render::Camera cam;
-	cam.ModificateView();
-	cam.position = Render::Vector3(0.0f,3.0f,0.0f);
-	cam.dir_front = Render::Vector3(0.0f,-1.0f,0.0f);
-	cam.dir_up = Render::Vector3(0.0f,0.0f,1.0f);
-	cam.ModificateProj();
-	cam.type = Render::ViewType::PERSPECTIVE;
-	cam.pers_fov = glm::radian(45.0f);
-	cam.pers_k = Init::windowinfo.screen_height/Init::windowinfo.screen_height;
-	cam.znear = 0.1f;
-	cam.zfar = 10.0f;
-	Render::Renderer ren(&cam,Init::windowinfo.window_ptr);
-	Render::TransformDataPack tdp = {
-		Render::Vector3(0.0f,0.0f,0.0f),
-		Render::Vector3(1.0f,1.0f,1.0f);
-		Render::Quaternion()
-	};
-	Render::RenderObject *rendobj = ren.AddRenderObject();
-	rendobj.GetTransform().Initialize(tdp);
-	Render::Mesh mesh;
-	mesh.Initialize(0,Resource::IndexStatus::ONLY_INDEX);
-	glBindVertexArray()
 
 	while (!glfwWindowShouldClose(Init::windowinfo.window_ptr))
 	{
