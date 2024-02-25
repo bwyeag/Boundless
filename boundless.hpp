@@ -155,11 +155,13 @@ class Texture {
     Texture();
     ~Texture();
 
-    friend void LoadTexture(const std::string& path,
-                            Texture& tex,
-                            GLsizei add_mipmap_level = 0,
-                            GLsizei samples = default_texture_samples,
-                            GLboolean fixedsample = default_texture_fixedsamplelocation);
+    friend void LoadTexture(
+        const std::string& path,
+        Texture& tex,
+        GLsizei add_mipmap_level = 0,
+        GLsizei samples = default_texture_samples,
+        GLboolean fixedsample = default_texture_fixedsamplelocation);
+    friend void PackTexture(const std::string& save_path, Texture& tex);
     static void GenTextureFile(const std::string& path);
     static void GenTextureFile(const char* path);
 };
