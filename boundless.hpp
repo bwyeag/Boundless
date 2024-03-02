@@ -115,7 +115,8 @@ class Mesh {
     static void GenMeshFileMerged(const char* path);
     ~Mesh();
 };
-
+constexpr size_t TextureInternalFormatSize(GLenum type);
+constexpr size_t TypeSize(GLenum type);
 struct TextureMipData {
     // 纹理该Mipmap层级的长宽高
     GLsizei width, height, depth;

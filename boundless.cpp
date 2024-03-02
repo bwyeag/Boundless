@@ -554,25 +554,76 @@ constexpr size_t TextureInternalFormatSize(GLenum type) {
 constexpr size_t TypeSize(GLenum type) {
     switch (type) {
         case GL_BYTE:
-            return 1;
+            return sizeof(GLbyte);
+        case GL_BOOL:
+            return sizeof(GLbyte);
         case GL_UNSIGNED_BYTE:
-            return 1;
+            return sizeof(GLubyte);
         case GL_SHORT:
-            return 2;
+            return sizeof(GLshort);
         case GL_UNSIGNED_SHORT:
-            return 2;
+            return sizeof(GLushort);
         case GL_INT:
-            return 4;
+            return sizeof(GLint);
         case GL_UNSIGNED_INT:
-            return 4;
-        case GL_HALF_FLOAT:
-            return 2;
+            return sizeof(GLuint);
+        case GL_FIXED:
+            return sizeof(GLfixed);
         case GL_FLOAT:
-            return 4;
+            return sizeof(GLfloat);
+        case GL_HALF_FLOAT:
+            return sizeof(GLhalf);
         case GL_DOUBLE:
-            return 8;
+            return sizeof(GLdouble);
+        case GL_INT_VEC2:
+            return 2 * sizeof(GLint);
+        case GL_UNSIGNED_INT_VEC2:
+            return 2 * sizeof(GLuint);
+        case GL_INT_VEC3:
+            return 3 * sizeof(GLint);
+        case GL_UNSIGNED_INT_VEC3:
+            return 3 * sizeof(GLuint);
+        case GL_INT_VEC4:
+            return 4 * sizeof(GLint);
+        case GL_UNSIGNED_INT_VEC4:
+            return 4 * sizeof(GLuint);
+        case GL_INT_2_10_10_10_REV:
+            return sizeof(GLuint);
+        case GL_UNSIGNED_INT_2_10_10_10_REV:
+            return sizeof(GLuint);
+        case GL_FLOAT_VEC2:
+            return 2 * sizeof(GLfloat);
+        case GL_FLOAT_VEC3:
+            return 3 * sizeof(GLfloat);
+        case GL_FLOAT_VEC4:
+            return 4 * sizeof(GLfloat);
+        case GL_FLOAT_MAT2:
+            return 4 * sizeof(GLfloat);
+        case GL_FLOAT_MAT2x3:
+            return 6 * sizeof(GLfloat);
+        case GL_FLOAT_MAT2x4:
+            return 8 * sizeof(GLfloat);
+        case GL_FLOAT_MAT3:
+            return 9 * sizeof(GLfloat);
+        case GL_FLOAT_MAT3x2:
+            return 6 * sizeof(GLfloat);
+        case GL_FLOAT_MAT3x4:
+            return 12 * sizeof(GLfloat);
+        case GL_FLOAT_MAT4:
+            return 16 * sizeof(GLfloat);
+        case GL_FLOAT_MAT4x2:
+            return 8 * sizeof(GLfloat);
+        case GL_FLOAT_MAT4x3:
+            return 12 * sizeof(GLfloat);
+        case GL_BOOL_VEC2:
+            return 2 * sizeof(GLbyte);
+        case GL_BOOL_VEC3:
+            return 3 * sizeof(GLbyte);
+        case GL_BOOL_VEC4:
+            return 4 * sizeof(GLbyte);
+        default:
+            return 0;
     }
-    return 0;
 }
 constexpr size_t TextureExternalFormatSize(GLenum format, GLenum type) {
     size_t res;
