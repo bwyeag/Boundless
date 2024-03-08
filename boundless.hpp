@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Eigen/Core"
+
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
@@ -195,16 +197,10 @@ class Program {
         GLenum type;
         GLuint id;
     };
-
    private:
     GLuint program_id;
     std::vector<ShaderInfo> program_shader;
-    mutable std::unordered_map<std::string, GLint> uniformmap;
-
     void PrintLog() const;
-    GLint GetUniformLocation(std::string_view target) const;
-    GLint GetUniformBlockLocation(std::string_view target) const;
-
    public:
     Program();
     Program(const Program& target) = delete;
@@ -217,92 +213,27 @@ class Program {
     void AddShader(std::string_view path, GLenum type);
     void Link() const;
 
-    void Use() const;
-    static void UnUse() const;
+    static void UseProgram(Program& p);
+    static void UnUseProgram();
 
     static GLuint LoadShader(std::string_view path, GLenum type);
     static GLuint LoadShader(const char* path, GLenum type);
+};
+class transform {
+public:
+    vec3 position;
+};
 
-    void SetTexture(std::string_view name, GLint unit);
-    void SetBool(std::string_view name, GLboolean value);
-    void SetInt(std::string_view name, GLint value);
-    void SetUint(std::string_view name, GLuint value);
-    void SetFloat(std::string_view name, GLfloat value);
-    void SetVec2(std::string_view name, const glm::vec2& value);
-    void SetVec2(std::string_view name, GLfloat x, GLfloat y);
-    void SetVec3(std::string_view name, const glm::vec3& value);
-    void SetVec3(std::string_view name, GLfloat x, GLfloat y, GLfloat z);
-    void SetVec4(std::string_view name, const glm::vec4& value);
-    void SetVec4(std::string_view name,
-                 GLfloat x,
-                 GLfloat y,
-                 GLfloat z,
-                 GLfloat w);
-    void SetVec2Array(std::string_view name,
-                      GLsizei count,
-                      const glm::vec2* value);
-    void SetVec3Array(std::string_view name,
-                      GLsizei count,
-                      const glm::vec3* value);
-    void SetVec4Array(std::string_view name,
-                      GLsizei count,
-                      const glm::vec4* value);
-    void SetMat2(std::string_view name, const glm::mat2& mat);
-    void SetMat3(std::string_view name, const glm::mat3& mat);
-    void SetMat4(std::string_view name, const glm::mat4& mat);
-    void SetMat2Array(std::string_view name,
-                      GLsizei count,
-                      const glm::mat2* mat);
-    void SetMat3Array(std::string_view name,
-                      GLsizei count,
-                      const glm::mat3* mat);
-    void SetMat4Array(std::string_view name,
-                      GLsizei count,
-                      const glm::mat4* mat);
-    void SetDouble(std::string_view name, GLdouble value);
-    void SetVec2(std::string_view name, const glm::dvec2& value);
-    void SetVec2Array(std::string_view name,
-                      GLsizei count,
-                      const glm::dvec2* value);
-    void SetVec2(std::string_view name, GLdouble x, GLdouble y);
-    void SetVec3(std::string_view name, const glm::dvec3& value);
-    void SetVec3Array(std::string_view name,
-                      GLsizei count,
-                      const glm::dvec3* value);
-    void SetVec3(std::string_view name, GLdouble x, GLdouble y, GLdouble z);
-    void SetVec4(std::string_view name, const glm::dvec4& value);
-    void SetVec4Array(std::string_view name,
-                      GLsizei count,
-                      const glm::dvec4* value);
-    void SetVec4(std::string_view name,
-                 GLdouble x,
-                 GLdouble y,
-                 GLdouble z,
-                 GLdouble w);
-    void SetMat2(std::string_view name, const glm::dmat2& mat);
-    void SetMat3(std::string_view name, const glm::dmat3& mat);
-    void SetMat4(std::string_view name, const glm::dmat4& mat);
-    void SetMat2Array(std::string_view name,
-                      GLsizei count,
-                      const glm::dmat2* mat);
-    void SetMat3Array(std::string_view name,
-                      GLsizei count,
-                      const glm::dmat3* mat);
-    void SetMat4Array(std::string_view name,
-                      GLsizei count,
-                      const glm::dmat4* mat);
-    void SetVec2(std::string_view name, const glm::ivec2& value);
-    void SetVec2(std::string_view name, GLint x, GLint y);
-    void SetVec3(std::string_view name, const glm::ivec3& value);
-    void SetVec3(std::string_view name, GLint x, GLint y, GLint z);
-    void SetVec4(std::string_view name, const glm::ivec4& value);
-    void SetVec4(std::string_view name, GLint x, GLint y, GLint z, GLint w);
-    void SetVec2(std::string_view name, const glm::uvec2& value);
-    void SetVec2(std::string_view name, GLuint x, GLuint y);
-    void SetVec3(std::string_view name, const glm::uvec3& value);
-    void SetVec3(std::string_view name, GLuint x, GLuint y, GLuint z);
-    void SetVec4(std::string_view name, const glm::uvec4& value);
-    void SetVec4(std::string_view name, GLuint x, GLuint y, GLuint z, GLuint w);
+class RenderObject {
+   private:
+    bool enable;
+    Mesh mesh;
+    transform trans;
+   public:
+    RenderObject();
+    ~RenderObject()
+    {
+    }
 };
 
 }  // namespace Boundless
