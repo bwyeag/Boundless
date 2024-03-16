@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "Eigen/Core"
+#include "Eigen/Geometry"
 
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -28,7 +29,8 @@ class ZlibException : public std::exception {
     int code;
 
    public:
-    ZlibException(int code) const char* what() const noexcept {
+    ZlibException(int code) { this->code = code; }
+    const char* what() const noexcept {
         if (code == Z_MEM_ERROR) {
             return "zlib memory error";
         } else if (code == Z_BUF_ERROR) {
@@ -197,10 +199,12 @@ class Program {
         GLenum type;
         GLuint id;
     };
+
    private:
     GLuint program_id;
     std::vector<ShaderInfo> program_shader;
     void PrintLog() const;
+
    public:
     Program();
     Program(const Program& target) = delete;
@@ -219,21 +223,36 @@ class Program {
     static GLuint LoadShader(std::string_view path, GLenum type);
     static GLuint LoadShader(const char* path, GLenum type);
 };
-class transform {
-public:
-    vec3 position;
+struct transform {
+    Eigen::Vector3 position;
+    Eigen::Vector3 scale;
+    Eigen::Quaternion rotate;
+    Eigen::Matrix4f model;
+    bool edited;
+
+    transform(const Eigen::Vector3& pos,
+              const Eigen::Vector3& sc,
+              const Eigen::Quaternion& rot)
+        : position(pos), scale(sc), rotate(rot), edited(true) {}
+    const Eigen::Matrix4f& get_model() {
+        if (edited) {
+            Eigen::Transform<double, 3, Eigen::Affine3d> tr =
+                Eigen::Translation3d(position) * rotate * Eigen::Scaling(scale);
+            model = tr.matrix() * Eigen::Matrix4f::Identity()
+        }
+        return model;
+    }
 };
 
 class RenderObject {
-   private:
+   public:
     bool enable;
     Mesh mesh;
     transform trans;
-   public:
+
     RenderObject();
-    ~RenderObject()
-    {
-    }
+    virtual void draw();
+    ~RenderObject() {}
 };
 
 }  // namespace Boundless
