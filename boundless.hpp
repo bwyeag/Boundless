@@ -249,10 +249,19 @@ class RenderObject {
     bool enable;
     Mesh mesh;
     transform trans;
-
-    RenderObject();
+    
+    RenderObject() {}
     virtual void draw();
-    ~RenderObject() {}
+    virtual ~RenderObject();
+};
+
+class Renderer
+{
+private:
+    
+public:
+    Renderer(/* args */);
+    ~Renderer();
 };
 
 }  // namespace Boundless
