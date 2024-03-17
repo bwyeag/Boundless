@@ -12,23 +12,33 @@ struct MaterialProperties {
     Vector3f emission, ambient, diffuse, specular;
     float shininess;
 };
+#define NUM_MAX_LIGHTS 2
 
 class ClassicLightBase {
    private:
     Program shader;
+    GLuint lightuniform;
+    LightProperties lightdata[NUM_MAX_LIGHTS];
    public:
     ClassicLightBase();
     void Load() {
         shader.AddShader(".\\shader\\classic_shader_vertex.glsl",GL_VERTEX_SHADER);
         shader.AddShader(".\\shader\\classic_shader_fragment.glsl",GL_FRAGMENT_SHADER);
         shader.Link();
+        glGetUniformBlockIndex(shader.GetID(), "Lights");
+        
     }
-    ~ClassicLightBase();
+    ~ClassicLightBase() {}
 };
 
 class ClassicLightRender : public RenderObject {
    public:
-    ClassicLightRender();
+    ClassicLightRender(ClassicLightBase* base) {
+        this->data_ptr = base;
+    }
+    virtual void draw(const Matrix4f& vp) {
+        
+    }
     ~ClassicLightRender();
 };
 

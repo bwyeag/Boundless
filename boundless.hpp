@@ -226,6 +226,7 @@ class Program {
     void AddShader(std::string_view path, GLenum type);
     void AddShaderByCode(std::string_view data, GLenum type);
     void Link() const;
+    inline GLuint GetID() {return program_id;}
 
     static void UseProgram(Program& p);
     static void UnUseProgram();
