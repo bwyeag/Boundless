@@ -4,6 +4,7 @@
 #include "glad/glad.h"
 #include "glfw/glfw3.h"
 
+#include "bl_data_struct.hpp"
 #include "bl_log.hpp"
 
 #include <cstdint>
@@ -12,6 +13,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -38,11 +40,18 @@ class ZlibException : public std::exception {
         } else if (code == Z_DATA_ERROR) {
             return "zlib data corrupted";
         } else {
-            return "unknow";
+            return "unknown";
         }
     }
 };
 }  // namespace zlib
+
+using Eigen::Matrix4d;
+using Eigen::Matrix4f;
+using Eigen::Quaterniond;
+using Eigen::Quaternionf;
+using Eigen::Vector3d;
+using Eigen::Vector3f;
 
 namespace Boundless {
 typedef std::int8_t int8;
@@ -215,6 +224,7 @@ class Program {
     ~Program();
 
     void AddShader(std::string_view path, GLenum type);
+    void AddShaderByCode(std::string_view data, GLenum type);
     void Link() const;
 
     static void UseProgram(Program& p);
@@ -222,23 +232,39 @@ class Program {
 
     static GLuint LoadShader(std::string_view path, GLenum type);
     static GLuint LoadShader(const char* path, GLenum type);
+    static GLuint ComplieShader(std::string_view code);
 };
 struct transform {
-    Eigen::Vector3 position;
-    Eigen::Vector3 scale;
-    Eigen::Quaternion rotate;
-    Eigen::Matrix4f model;
+    Vector3d position;
+    Vector3d scale;
+    Quaterniond rotate;
+    Matrix4f model;
     bool edited;
 
-    transform(const Eigen::Vector3& pos,
-              const Eigen::Vector3& sc,
-              const Eigen::Quaternion& rot)
+    transform() : edited(true) {}
+    transform(const Vector3d& pos, const Vector3d& sc, const Quaterniond& rot)
         : position(pos), scale(sc), rotate(rot), edited(true) {}
-    const Eigen::Matrix4f& get_model() {
+    const Matrix4f& get_model() {
         if (edited) {
-            Eigen::Transform<double, 3, Eigen::Affine3d> tr =
-                Eigen::Translation3d(position) * rotate * Eigen::Scaling(scale);
-            model = tr.matrix() * Eigen::Matrix4f::Identity()
+            model = Matrix4f::Zero();
+            model(0, 0) = static_cast<float>(scale.x());
+            model(1, 1) = static_cast<float>(scale.y());
+            model(2, 2) = static_cast<float>(scale.z());
+            model(3, 3) = 1.0f;
+            model = rotate.normalize().toRotationMatrix().cast<float>() * model;
+            model(0, 3) = static_cast<float>(
+                position.x() * model(0, 0) + position.y() * model(0, 1) +
+                position.z() * model(0, 2) + model(0, 3));
+            model(1, 3) = static_cast<float>(
+                position.x() * model(1, 0) + position.y() * model(1, 1) +
+                position.z() * model(1, 2) + model(1, 3));
+            model(2, 3) = static_cast<float>(
+                position.x() * model(2, 0) + position.y() * model(2, 1) +
+                position.z() * model(2, 2) + model(2, 3));
+            model(3, 3) = static_cast<float>(
+                position.x() * model(3, 0) + position.y() * model(3, 1) +
+                position.z() * model(3, 2) + model(3, 3));
+            edited = false;
         }
         return model;
     }
@@ -249,18 +275,64 @@ class RenderObject {
     bool enable;
     Mesh mesh;
     transform trans;
-    
-    RenderObject() {}
-    virtual void draw();
-    virtual ~RenderObject();
-};
+    void* data_ptr;
 
-class Renderer
-{
-private:
-    
-public:
-    Renderer(/* args */);
+    RenderObject() {}
+    inline void enable() { enable = true; }
+    inline void disable() { enable = false; }
+    virtual void draw(const Matrix4f& view_proj_mat) = 0;
+    virtual ~RenderObject() {}
+};
+class Camera {
+   private:
+    Matrix4f projection;
+    Matrix4f view;
+    Matrix4f vp_matrix;
+
+   public:
+    bool editedProj;
+    bool isFrustum;
+    double zfar, znear, width, height;
+
+    bool editedView;
+    Vector3d position, forword, up;
+
+    Camera();
+    const Matrix4f& get_proj();
+    const Matrix4f& get_view();
+    const Matrix4f& get_viewproj_matrix();
+};
+class Renderer {
+   private:
+    struct link_node {
+        link_node* next;
+        RenderObject obj;
+    };
+    object_pool<link_node, 64> pool;
+    link_node* head;
+
+   public:
+    Camera camera;
+
+    Renderer();
+    template<typename T, typename... arguments> T* add_renderobject(
+        typename&&... args) {
+        static_assert(std::is_base_of<RenderObject, T>::value,
+                      "Type must be derived from RenderObject.");
+        static_assert(sizeof(T) == sizeof(RenderObject),
+                      "Type must have the same size with RenderObject.");
+        link_node* p = pool.allocate();
+        new (&p.obj) T(std::forward<arguments>(args)...);
+        if (!head) {
+            p.next = nullptr;
+            head = p;
+        } else {
+            p.next = head;
+            head = p;
+        }
+        return &p.obj;
+    }
+    void draw_all();
     ~Renderer();
 };
 

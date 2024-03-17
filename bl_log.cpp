@@ -2,10 +2,7 @@
 
 namespace Boundless
 {
-    inline void ErrorHandle()
-    {
-        exit(EXIT_FAILURE);
-    }
+#ifdef _DEBUG
     /*OpenGL错误文本*/
     static const char *const str_BUFFER = "缓存区对象";
     static const char *const str_SHADER = "着色器对象";
@@ -145,4 +142,5 @@ namespace Boundless
         ERROR("OpenGL", char_severity , ">from " , char_source , ";type " , char_type , ";id " , id , ";\n"
                                       , message);
     }
+#endif //_DEBUG
 } // namespace Boundless

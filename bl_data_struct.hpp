@@ -6,19 +6,6 @@
  */
 #ifndef _BOUNDLESS_DATA_STRUCT_HPP_FILE_
 #define _BOUNDLESS_DATA_STRUCT_HPP_FILE_
-#include "glad/glad.h"
-
-#include <cstddef>
-#include <cstdint>
-
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <iostream>
-#include <list>
-#include <vector>
-
-#include "bl_log.hpp"
 
 namespace Boundless {
 template <typename DT, size_t chunk_size = 128>
@@ -65,11 +52,42 @@ class object_pool {
     object_pool& object_pool(const object_pool&) = delete;
     object_pool& operator=(object_pool&&) = delete;
     object_pool& operator=(const object_pool&) = delete;
+    void block_allocate() {
+        obj_chunk* p = new obj_chunk();
+        for (size_t i = 0; i < chunk_size - 1; i--) {
+            p->blocks[i].ptr = &p->blocks[i + 1];
+        }
+        p->blocks[chunk_size - 1].ptr = free_head;
+        free_head = &p->blocks[0];
+        p->next = chunk_head;
+        chunk_head = p;
+    }
+    template <typename... arguments>
+    DT* emplace_allocate(arguments&&... args) {
+        if (!free_head)
+            block_allocate();
+        DT* p = &free_head->data;
+        free_head = free_head->ptr;
+        p->DT(std::forward<arguments>(args)...);
+        return p;
+    }
+    DT* allocate() {
+        if (!free_head)
+            block_allocate();
+        DT* p = &free_head->data;
+        free_head = free_head->ptr;
+        return p;
+    }
+    void deallocate(DT* ptr) {
+        ptr->~DT();
+        ((block*)ptr)->ptr = free_head;
+        free_head = ((block*)ptr)->ptr;
+    }
     ~object_pool() {
         obj_chunk *p = chunk_head, q;
         while (!p) {
             q = p->next;
-            free(p);
+            delete p;
             p = q;
         }
     }

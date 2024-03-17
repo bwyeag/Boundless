@@ -840,6 +840,11 @@ void Program::AddShader(std::string_view path, GLenum type) {
     glAttachShader(program_id, shader_id);
     program_shader.push_back({type, shader_id});
 }
+void AddShaderByCode(std::string_view data, GLenum type) {
+    GLuint shader_id = Program::ComplieShader(data, type);
+    glAttachShader(program_id, shader_id);
+    program_shader.push_back({type, shader_id});
+}
 inline void Program::Link() const {
     glLinkProgram(program_id);
     PrintLog();
@@ -886,5 +891,151 @@ static GLuint Program::LoadShader(std::string_view path, GLenum type) {
 }
 static inline GLuint Program::LoadShader(const char* path, GLenum type) {
     return LoadShader(std::string_view(path), type);
+}
+static GLuint Program::ComplieShader(std::string_view code) {
+    GLuint shader_id = glCreateShader(type), success;
+    const char* res = code.begin();
+    const GLint length = static_cast<GLint>(code.size());
+    glShaderSource(shader_id, 1, &res, &length);
+    glCompileShader(shader_id);
+    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &success);
+    if (success == GL_FALSE) {
+        int length;
+        glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &length);
+        char* log = (char*)malloc(sizeof(char) * length);
+        if (log == nullptr) {
+            throw std::bad_alloc();
+        } else {
+            glGetShaderInfoLog(shader_id, length, &length, log);
+            ERROR("OpenGL", "着色器编译错误:", code,
+                  "\n--------------------------------", log,
+                  "\n--------------------------------");
+            free(log);
+            glDeleteShader(shader_id);
+            throw std::runtime_error("OpenGL:着色器编译错误:");
+        }
+    }
+}
+
+inline transform::transform() : edited(true) {}
+inline transform::transform(const Vector3d& pos,
+                            const Vector3d& sc,
+                            const Quaterniond& rot)
+    : position(pos), scale(sc), rotate(rot), edited(true) {}
+const Matrix4f& transform::get_model() {
+    if (edited) {
+        model = Matrix4f::Zero();
+        model(0, 0) = static_cast<float>(scale.x());
+        model(1, 1) = static_cast<float>(scale.y());
+        model(2, 2) = static_cast<float>(scale.z());
+        model(3, 3) = 1.0f;
+        model = rotate.normalize().toRotationMatrix().cast<float>() * model;
+        model(0, 3) = static_cast<float>(
+            position.x() * model(0, 0) + position.y() * model(0, 1) +
+            position.z() * model(0, 2) + model(0, 3));
+        model(1, 3) = static_cast<float>(
+            position.x() * model(1, 0) + position.y() * model(1, 1) +
+            position.z() * model(1, 2) + model(1, 3));
+        model(2, 3) = static_cast<float>(
+            position.x() * model(2, 0) + position.y() * model(2, 1) +
+            position.z() * model(2, 2) + model(2, 3));
+        model(3, 3) = static_cast<float>(
+            position.x() * model(3, 0) + position.y() * model(3, 1) +
+            position.z() * model(3, 2) + model(3, 3));
+        edited = false;
+    }
+    return model;
+}
+inline Camera::Camera() : editedProj(true), editedView(true) {}
+const Matrix4f& Camera::get_proj() {
+    if (editedProj) {
+        editedProj = false;
+        if (isFrustum) {
+            projection << static_cast<float>(2.0 * znear / width), 0.0f, 0.0f,
+                0.0f, 0.0f, static_cast<float>(2.0 * znear / height), 0.0f,
+                0.0f, 0.0f, 0.0f,
+                static_cast<float>(-(zfar + znear) / (zfar - znear)),
+                static_cast<float>(2.0 * zfar * znear / (zfar - znear)), 0.0f,
+                0.0f, -1.0f, 0.0f;
+        } else {
+            projection << static_cast<float>(2.0 / width), 0.0f, 0.0f, 0.0f,
+                0.0f, static_cast<float>(2.0 / height), 0.0f, 0.0f, 0.0f, 0.0f,
+                static_cast<float>(-2.0 / (zfar - znear)),
+                static_cast<float>(-(zfar + znear) / (zfar - znear)), 0.0f,
+                0.0f, 0.0f, 1.0f;
+        }
+    }
+    return projection;
+}
+const Matrix4f& Camera::get_view() {
+    if (editedView) {
+        editedView = false;
+        forword = forword.normalize();
+        Vector3d s = Vector3d::normalize(forword.cross(up));
+        Vector3d u = Vector3d::normalize(forword.cross(s));
+        view << static_cast<float>(s.x()), static_cast<float>(s.y()),
+            static_cast<float>(s.z()), static_cast<float>(-s.dot(position)),
+            static_cast<float>(u.x()), static_cast<float>(u.y()),
+            static_cast<float>(u.z()), static_cast<float>(-u.dot(position)),
+            static_cast<float>(-forword.x()), static_cast<float>(-forword.y()),
+            static_cast<float>(-forword.z()),
+            static_cast<float>(forword.dot(position)), 0.0f, 0.0f, 0.0f, 1.0f;
+    }
+    return view;
+}
+const Matrix4f& Camera::get_viewproj_matrix() {
+    bool mult = false;
+    if (editedProj) {
+        editedProj = false;
+        if (isFrustum) {
+            projection << static_cast<float>(2.0 * znear / width), 0.0f, 0.0f,
+                0.0f, 0.0f, static_cast<float>(2.0 * znear / height), 0.0f,
+                0.0f, 0.0f, 0.0f,
+                static_cast<float>(-(zfar + znear) / (zfar - znear)),
+                static_cast<float>(2.0 * zfar * znear / (zfar - znear)), 0.0f,
+                0.0f, -1.0f, 0.0f;
+        } else {
+            projection << static_cast<float>(2.0 / width), 0.0f, 0.0f, 0.0f,
+                0.0f, static_cast<float>(2.0 / height), 0.0f, 0.0f, 0.0f, 0.0f,
+                static_cast<float>(-2.0 / (zfar - znear)),
+                static_cast<float>(-(zfar + znear) / (zfar - znear)), 0.0f,
+                0.0f, 0.0f, 1.0f;
+        }
+        mult = true;
+    }
+    if (editedView) {
+        editedView = false;
+        forword = forword.normalize();
+        Vector3d s = Vector3d::normalize(forword.cross(up));
+        Vector3d u = Vector3d::normalize(forword.cross(s));
+        view << static_cast<float>(s.x()), static_cast<float>(s.y()),
+            static_cast<float>(s.z()), static_cast<float>(-s.dot(position)),
+            static_cast<float>(u.x()), static_cast<float>(u.y()),
+            static_cast<float>(u.z()), static_cast<float>(-u.dot(position)),
+            static_cast<float>(-forword.x()), static_cast<float>(-forword.y()),
+            static_cast<float>(-forword.z()),
+            static_cast<float>(forword.dot(position)), 0.0f, 0.0f, 0.0f, 1.0f;
+        mult = true;
+    }
+    if (mult) {
+        vp_matrix = projection * view;
+    }
+    return vp_matrix;
+}
+Renderer::Renderer() : head(nullptr) {}
+void Renderer::draw_all() {
+    link_node* p = head;
+    const Matrix4f& vp = camera.get_viewproj_matrix();
+    while (!p) {
+        p->obj.draw(vp);
+        p = p->next;
+    }
+}
+Renderer::~Renderer() {
+    link_node* p = head;
+    while (!p) {
+        p->obj.~RenderObject();
+        p = p->next;
+    }
 }
 }  // namespace Boundless
