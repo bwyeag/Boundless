@@ -917,12 +917,7 @@ static GLuint Program::ComplieShader(std::string_view code) {
     }
 }
 
-inline transform::transform() : edited(true) {}
-inline transform::transform(const Vector3d& pos,
-                            const Vector3d& sc,
-                            const Quaterniond& rot)
-    : position(pos), scale(sc), rotate(rot), edited(true) {}
-const Matrix4f& transform::get_model() {
+const Matrix4f& Transform::get_model() {
     if (edited) {
         model = Matrix4f::Zero();
         model(0, 0) = static_cast<float>(scale.x());
@@ -946,6 +941,13 @@ const Matrix4f& transform::get_model() {
     }
     return model;
 }
+inline void RenderObject::enable() {
+    base_transform->roenble = true;
+}
+inline void RenderObject::disable() {
+    base_transform->roenble = false;
+}
+
 inline Camera::Camera() : editedProj(true), editedView(true) {}
 const Matrix4f& Camera::get_proj() {
     if (editedProj) {
@@ -1022,20 +1024,129 @@ const Matrix4f& Camera::get_viewproj_matrix() {
     }
     return vp_matrix;
 }
-Renderer::Renderer() : head(nullptr) {}
-void Renderer::draw_all() {
-    link_node* p = head;
+Renderer::Renderer() : transform_head(nullptr) {}
+Transform* Renderer::AddTransformNode(const Vector3d& vp,
+                                      const Vector3d& vs,
+                                      const Quaterniond& qr) {
+    Transform* tfo = tr_pool.allocate();
+    tfo->parent = nullptr;
+    tfo->child_head = nullptr;
+    if (!transform_head) {
+        tfo->next_brother = nullptr;
+        transform_head = tfo;
+    } else {
+        tfo->next_brother = transform_head;
+        transform_head = tfo;
+    }
+
+    tfo->roenble = false;
+    tfo->edited = true;
+    tfo->position = vp;
+    tfo->scale = vs;
+    tfo->rotate = qr;
+    tfo->render_obj = nullptr;
+    return tfo;
+}
+Transform* Renderer::AddTransformNodeUnder(Transform* parent,
+                                           const Vector3d& vp,
+                                           const Vector3d& vs,
+                                           const Quaterniond& qr) {
+    Transform* tfo = tr_pool.allocate();
+    tfo->parent = parent;
+    tfo->child_head = nullptr;
+    tfo->next_brother = parent->child_head;
+    parent->child_head = tfo;
+
+    tfo->roenble = false;
+    tfo->edited = true;
+    tfo->position = vp;
+    tfo->scale = vs;
+    tfo->rotate = qr;
+    tfo->render_obj = nullptr;
+    return tfo;
+}
+Transform* Renderer::AddTransformNodeRight(Transform* brother,
+                                           const Vector3d& vp,
+                                           const Vector3d& vs,
+                                           const Quaterniond& qr) {
+    Transform* tfo = tr_pool.allocate();
+    tfo->parent = brother->parent;
+    tfo->child_head = nullptr;
+    tfo->next_brother = brother->next_brother;
+    brother->next_brother = tfo;
+
+    tfo->roenble = false;
+    tfo->edited = true;
+    tfo->position = vp;
+    tfo->scale = vs;
+    tfo->rotate = qr;
+    tfo->render_obj = nullptr;
+    return tfo;
+}
+void Renderer::DrawAll() {
     const Matrix4f& vp = camera.get_viewproj_matrix();
-    while (!p) {
-        p->obj.draw(vp);
-        p = p->next;
+    Transform *cur_root = transform_head, p, tp;
+    while (!cur_root) {
+        mat_stack.push(vp * cur_root->get_model());
+        if (cur_root->roenble)
+            cur_root->render_obj->draw(mat_stack.top());
+        p = cur_root->child_head;
+        if (!p) {
+            draw_ptrstack.push(nullptr);
+            do {
+                draw_ptrstack.push(p);
+                p = p->next_brother;
+            } while (!p);
+            do {
+                p = draw_ptrstack.top();
+                draw_ptrstack.pop();
+                if (p == nullptr) {
+                    mat_stack.pop();
+                    continue;
+                }
+                mat_stack.push(mat_stack.top() * p->get_model());
+                if (cur_root->roenble)
+                    cur_root->render_obj->draw(mat_stack.top());
+                tp = p.child_head;
+                if (!tp) {
+                    draw_ptrstack.push(nullptr);
+                    do {
+                        draw_ptrstack.push(tp);
+                        tp = tp->next_brother;
+                    } while (!tp);
+                } else {
+                    mat_stack.pop();
+                }
+            } while (!draw_ptrstack.empty());
+        }
+        mat_stack.pop();
+        cur_root = cur_root->next_brother;
     }
 }
 Renderer::~Renderer() {
-    link_node* p = head;
-    while (!p) {
-        p->obj.~RenderObject();
-        p = p->next;
+    Transform *cur_root = transform_head, p, tp;
+    while (!cur_root) {
+        if (!cur_root->render_obj)
+            cur_root->render_obj->~RenderObject();
+        p = cur_root->child_head;
+        if (!p) {
+            do {
+                draw_ptrstack.push(p);
+                p = p->next_brother;
+            } while (!p);
+            do {
+                p = draw_ptrstack.top();
+                draw_ptrstack.pop();
+                if (!cur_root->render_obj)
+                    cur_root->render_obj->~RenderObject();
+                tp = p.child_head;
+                while (!tp) {
+                    draw_ptrstack.push(tp);
+                    tp = tp->next_brother;
+                }
+            } while (!draw_ptrstack.empty());
+        }
+        cur_root = cur_root->next_brother;
     }
 }
 }  // namespace Boundless

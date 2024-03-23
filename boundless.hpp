@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <exception>
 #include <fstream>
+#include <stack>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -226,7 +227,7 @@ class Program {
     void AddShader(std::string_view path, GLenum type);
     void AddShaderByCode(std::string_view data, GLenum type);
     void Link() const;
-    inline GLuint GetID() {return program_id;}
+    inline GLuint GetID() { return program_id; }
 
     static void UseProgram(Program& p);
     static void UnUseProgram();
@@ -235,55 +236,37 @@ class Program {
     static GLuint LoadShader(const char* path, GLenum type);
     static GLuint ComplieShader(std::string_view code);
 };
-struct transform {
+class RenderObject;
+class Renderer;
+class Transform {
+   private:
+    friend class Renderer;
+    Transform *parent, *next_brother, *child_head;
+
+   public:
+    RenderObject* render_obj;
     Vector3d position;
     Vector3d scale;
     Quaterniond rotate;
     Matrix4f model;
-    bool edited;
+    bool edited, roenble;
 
-    transform() : edited(true) {}
-    transform(const Vector3d& pos, const Vector3d& sc, const Quaterniond& rot)
-        : position(pos), scale(sc), rotate(rot), edited(true) {}
-    const Matrix4f& get_model() {
-        if (edited) {
-            model = Matrix4f::Zero();
-            model(0, 0) = static_cast<float>(scale.x());
-            model(1, 1) = static_cast<float>(scale.y());
-            model(2, 2) = static_cast<float>(scale.z());
-            model(3, 3) = 1.0f;
-            model = rotate.normalize().toRotationMatrix().cast<float>() * model;
-            model(0, 3) = static_cast<float>(
-                position.x() * model(0, 0) + position.y() * model(0, 1) +
-                position.z() * model(0, 2) + model(0, 3));
-            model(1, 3) = static_cast<float>(
-                position.x() * model(1, 0) + position.y() * model(1, 1) +
-                position.z() * model(1, 2) + model(1, 3));
-            model(2, 3) = static_cast<float>(
-                position.x() * model(2, 0) + position.y() * model(2, 1) +
-                position.z() * model(2, 2) + model(2, 3));
-            model(3, 3) = static_cast<float>(
-                position.x() * model(3, 0) + position.y() * model(3, 1) +
-                position.z() * model(3, 2) + model(3, 3));
-            edited = false;
-        }
-        return model;
-    }
+    const Matrix4f& get_model();
 };
 
 class RenderObject {
    public:
-    bool enable;
-    Mesh mesh;
-    transform trans;
+    Transform* base_transform;
     void* data_ptr;
+    Mesh mesh;
 
     RenderObject() {}
-    inline void enable() { enable = true; }
-    inline void disable() { enable = false; }
-    virtual void draw(const Matrix4f& view_proj_mat) = 0;
+    void enable();
+    void disable();
+    virtual void draw(const Matrix4f& mvp_matrix) = 0;
     virtual ~RenderObject() {}
 };
+
 class Camera {
    private:
     Matrix4f projection;
@@ -303,37 +286,116 @@ class Camera {
     const Matrix4f& get_view();
     const Matrix4f& get_viewproj_matrix();
 };
+
 class Renderer {
    private:
-    struct link_node {
-        link_node* next;
-        RenderObject obj;
-    };
-    object_pool<link_node, 64> pool;
-    link_node* head;
+    object_pool<Transform, 64> tr_pool;
+    object_pool<RenderObject, 64> ro_pool;
+    Transform* transform_head;
+    std::stack<Matrix4f> mat_stack;
+    std::stack<Transform*> draw_ptrstack;
 
    public:
     Camera camera;
 
     Renderer();
-    template<typename T, typename... arguments> T* add_renderobject(
-        typename&&... args) {
+    Transform* AddTransformNode(const Vector3d& vp,
+                                const Vector3d& vs,
+                                const Quaterniond& qr);
+    Transform* AddTransformNodeUnder(Transform* parent,
+                                     const Vector3d& vp,
+                                     const Vector3d& vs,
+                                     const Quaterniond& qr);
+    Transform* AddTransformNodeRight(Transform* brother,
+                                     const Vector3d& vp,
+                                     const Vector3d& vs,
+                                     const Quaterniond& qr);
+    template <typename T, typename... arguments>
+    Transform* AddObject(const Vector3d& vp,
+                         const Vector3d& vs,
+                         const Quaterniond& qr,
+                         typename&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
-        static_assert(sizeof(T) == sizeof(RenderObject),
-                      "Type must have the same size with RenderObject.");
-        link_node* p = pool.allocate();
-        new (&p.obj) T(std::forward<arguments>(args)...);
-        if (!head) {
-            p.next = nullptr;
-            head = p;
+        static_assert(
+            sizeof(T) == sizeof(RenderObject),
+            "Type must have the same size compare with RenderObject.");
+        Transform* tfo = tr_pool.allocate();
+        Renderer* rdo = ro_pool.allocate();
+        tfo->parent = nullptr;
+        tfo->child_head = nullptr;
+        if (!transform_head) {
+            tfo->next_brother = nullptr;
+            transform_head = tfo;
         } else {
-            p.next = head;
-            head = p;
+            tfo->next_brother = transform_head;
+            transform_head = tfo;
         }
-        return &p.obj;
+
+        tfo->roenble = true;
+        tfo->edited = true;
+        tfo->position = vp;
+        tfo->scale = vs;
+        tfo->rotate = qr;
+        tfo->render_obj = rdo;
+        new ((T*)rdo) T(std::forward<arguments>(args)...);
+        return tfo;
     }
-    void draw_all();
+    template <typename T, typename... arguments>
+    Transform* AddObjectUnder(Transform* parent,
+                              const Vector3d& vp,
+                              const Vector3d& vs,
+                              const Quaterniond& qr,
+                              typename&&... args) {
+        static_assert(std::is_base_of<RenderObject, T>::value,
+                      "Type must be derived from RenderObject.");
+        static_assert(
+            sizeof(T) == sizeof(RenderObject),
+            "Type must have the same size compare with RenderObject.");
+        Transform* tfo = tr_pool.allocate();
+        Renderer* rdo = ro_pool.allocate();
+        tfo->parent = parent;
+        tfo->child_head = nullptr;
+        tfo->next_brother = parent->child_head;
+        parent->child_head = tfo;
+
+        tfo->roenble = true;
+        tfo->edited = true;
+        tfo->position = vp;
+        tfo->scale = vs;
+        tfo->rotate = qr;
+        tfo->render_obj = rdo;
+        new ((T*)rdo) T(std::forward<arguments>(args)...);
+        return tfo;
+    }
+    template <typename T, typename... arguments>
+    Transform* AddObjectRight(Transform* brother,
+                              const Vector3d& vp,
+                              const Vector3d& vs,
+                              const Quaterniond& qr,
+                              typename&&... args) {
+        static_assert(std::is_base_of<RenderObject, T>::value,
+                      "Type must be derived from RenderObject.");
+        static_assert(
+            sizeof(T) == sizeof(RenderObject),
+            "Type must have the same size compare with RenderObject.");
+        Transform* tfo = tr_pool.allocate();
+        Renderer* rdo = ro_pool.allocate();
+        tfo->parent = brother->parent;
+        tfo->child_head = nullptr;
+        tfo->next_brother = brother->next_brother;
+        brother->next_brother = tfo;
+
+        tfo->roenble = true;
+        tfo->edited = true;
+        tfo->position = vp;
+        tfo->scale = vs;
+        tfo->rotate = qr;
+        tfo->render_obj = rdo;
+        new ((T*)rdo) T(std::forward<arguments>(args)...);
+        return tfo;
+    }
+    void DrawAll();
     ~Renderer();
 };
 
