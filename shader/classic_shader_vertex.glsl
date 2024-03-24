@@ -1,19 +1,20 @@
 #version 450 core
-uniform mat4 MVP_matrix;
-uniform mat4 MV_matrix;
-uniform mat4 normal_matrix;
-uniform mat4 color;
+layout(location = 0) uniform mat4 MVPMatrix;
+layout(location = 1) uniform mat4 MVMatrix;
+layout(location = 2) uniform mat3 NormalMatrix;
 
-in vec3 vertex_position;
-in vec3 vertex_normal;
+layout(location = 3) uniform VertexColor;
 
-out vec4 vcolor;
-out vec3 vnormal;
-out vec4 vposition;
+in vec3 VertexPosition;
+in vec3 VertexNormal;
+
+out vec4 Color;
+out vec3 Normal;
+out vec4 WorldPosition;
 
 void main() {
-    vcolor = color;
-    vnormal = normalize(normal_matrix * vertex_normal);
-    vposition = MV_matrix * vertex_position;
-    gl_Position = MVP_matrix * vertex_position;
+    Color = VertexColor;
+    Normal = normalize(NormalMatrix * VertexNormal);
+    WorldPosition = MVMatrix * VertexPosition;
+    gl_Position = MVPMatrix * VertexPosition;
 }
