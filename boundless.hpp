@@ -107,6 +107,7 @@ class Mesh {
     const std::vector<GLuint>& GetTexture();
     void SetPrimitiveType(GLenum type);
     void SetRestartIndex(GLuint index);
+    void InitMesh(GLsizei* stride_array, GLintptr* start_array = nullptr);
     GLuint GetVAO();
     GLuint GetVBO();
     GLuint GetIBO();
@@ -249,7 +250,7 @@ class Transform {
     Vector3d scale;
     Quaterniond rotate;
     Matrix4f model;
-    bool edited, roenble;
+    bool edited, roenble, enable;
 
     const Matrix4f& get_model();
 };
@@ -263,7 +264,9 @@ class RenderObject {
     RenderObject() {}
     void enable();
     void disable();
-    virtual void draw(const Matrix4f& mvp_matrix) = 0;
+    virtual void draw(const Matrix4f& mvp_matrix,
+                      const Matrix4f& model_matrix,
+                      const Matrix4f& normal_matrix) = 0;
     virtual ~RenderObject() {}
 };
 

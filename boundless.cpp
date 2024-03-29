@@ -51,6 +51,31 @@ Mesh::Mesh(IndexStatus indexst, size_t bufcnt) {
         glCreateBuffers(1, &index_buffer);
     }
 }
+    void Mesh::InitMesh(GLsizei* stride_array, GLintptr* start_array = nullptr) {
+        if (index_status != IndexStatus::NO_INDEX) {
+            glVertexArrayElementBuffer(vertex_array, index_buffer);
+        }
+        if (!start_array) {
+            glVertexArrayVertexBuffer(vertex_array, 0, vertex_buffer,
+                                      start_array[0], stride_array[0]);
+            if (!buffers.empty()) {
+                glVertexArrayVertexBuffers(vertex_array, 0, buffers.size(),
+                                           &buffers[0], &start_array[1],
+                                           &stride_array[1]);
+            }
+        }
+        else {
+            glVertexArrayVertexBuffer(vertex_array, 0, vertex_buffer,
+                                      0, stride_array[0]);
+            if (!buffers.empty()) {
+                GLintptr arr[buffers.size()];
+                memset(arr, 0, sizeof(arr));
+                glVertexArrayVertexBuffers(vertex_array, 0, buffers.size(),
+                                           &buffers[0], arr,
+                                           &stride_array[1]);
+            }
+        }
+    }
 inline const std::vector<GLuint>& Mesh::GetBuffer() {
     return buffers;
 }
@@ -85,11 +110,13 @@ void LoadMesh(const Byte* data, size_t length, Mesh& mesh) {
     mesh.restart_index = head.restart_index;
     glCreateVertexArrays(1, &mesh.vertex_array);
     glCreateBuffers(1, &mesh.vertex_buffer);
-    mesh.buffers.resize(head.buffer_count);
-    glCreateBuffers(head.buffer_count, &mesh.buffers[0]);
+    if (head.buffer_count > 0) {
+        mesh.buffers.resize(head.buffer_count);
+        glCreateBuffers(head.buffer_count, &mesh.buffers[0]);
+    }
     glNamedBufferStorage(mesh.vertex_buffer, head.vbo.length,
                          data + head.vbo.start, GL_MAP_READ_BIT);
-    if (mesh.index_status > 31) {
+    if (mesh.index_status != IndexStatus::NO_INDEX) {
         glCreateBuffers(1, &mesh.index_buffer);
         glNamedBufferStorage(mesh.index_buffer, head.ibo.length,
                              data + head.ibo.start, GL_MAP_READ_BIT);
@@ -1085,41 +1112,47 @@ Transform* Renderer::AddTransformNodeRight(Transform* brother,
 }
 void Renderer::DrawAll() {
     const Matrix4f& vp = camera.get_viewproj_matrix();
+    const Matrix4f& view = camera.get_view();
     Transform *cur_root = transform_head, p, tp;
     while (!cur_root) {
-        mat_stack.push(vp * cur_root->get_model());
-        if (cur_root->roenble)
-            cur_root->render_obj->draw(mat_stack.top());
-        p = cur_root->child_head;
-        if (!p) {
-            draw_ptrstack.push(nullptr);
-            do {
-                draw_ptrstack.push(p);
-                p = p->next_brother;
-            } while (!p);
-            do {
-                p = draw_ptrstack.top();
-                draw_ptrstack.pop();
-                if (p == nullptr) {
-                    mat_stack.pop();
-                    continue;
-                }
-                mat_stack.push(mat_stack.top() * p->get_model());
-                if (cur_root->roenble)
-                    cur_root->render_obj->draw(mat_stack.top());
-                tp = p.child_head;
-                if (!tp) {
-                    draw_ptrstack.push(nullptr);
-                    do {
-                        draw_ptrstack.push(tp);
-                        tp = tp->next_brother;
-                    } while (!tp);
-                } else {
-                    mat_stack.pop();
-                }
-            } while (!draw_ptrstack.empty());
+        if (cur_root->enable) {
+            mat_stack.push(cur_root->get_model());
+            if (cur_root->roenble)
+                cur_root->render_obj->draw(vp * mat_stack.top(), mat_stack.top(), mat_stack.top().inverse().transpose());
+            p = cur_root->child_head;
+            if (!p) {
+                draw_ptrstack.push(nullptr);
+                do {
+                    draw_ptrstack.push(p);
+                    p = p->next_brother;
+                } while (!p);
+                do {
+                    p = draw_ptrstack.top();
+                    draw_ptrstack.pop();
+                    if (p == nullptr) {
+                        mat_stack.pop();
+                        continue;
+                    }
+                    if (!p->enable) {
+                        continue;
+                    }
+                    mat_stack.push(p->get_model() * mat_stack.top());
+                    if (cur_root->roenble)
+                        cur_root->render_obj->draw(vp * mat_stack.top(), mat_stack.top(), mat_stack.top().inverse().transpose());
+                    tp = p.child_head;
+                    if (!tp) {
+                        draw_ptrstack.push(nullptr);
+                        do {
+                            draw_ptrstack.push(tp);
+                            tp = tp->next_brother;
+                        } while (!tp);
+                    } else {
+                        mat_stack.pop();
+                    }
+                } while (!draw_ptrstack.empty());
+            }
+            mat_stack.pop();
         }
-        mat_stack.pop();
         cur_root = cur_root->next_brother;
     }
 }

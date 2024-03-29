@@ -28,8 +28,8 @@ layout(std140, binding = 0) uniform Data {
     LightProp Lights[MaxLights];
     MaterialProp Materials[MaxMaterials];
 };
-layout(location = 4) uniform vec3 EyeDirection;
-layout(location = 5) uniform int MaterialIndex;
+layout(location = 6) uniform vec3 EyeDirection;
+layout(location = 7) uniform int MaterialIndex;
 
 in vec4 Color;
 in vec3 Normal;
