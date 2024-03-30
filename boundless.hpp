@@ -53,6 +53,8 @@ using Eigen::Quaterniond;
 using Eigen::Quaternionf;
 using Eigen::Vector3d;
 using Eigen::Vector3f;
+using Eigen::Vector4d;
+using Eigen::Vector4f;
 
 namespace Boundless {
 typedef std::int8_t int8;
@@ -77,10 +79,10 @@ struct DataRange {
 };
 
 struct MeshFile {
-    GLenum primitive_type;
+    GLenum primitive_type, index_type;
     IndexStatus index_status;
-    GLuint restart_index;
-    uint32 buffer_count;
+    uint32 restart_index;
+    uint32 buffer_count, mesh_count;
     DataRange vbo, ibo;
     DataRange buffers[];
 };
@@ -88,13 +90,16 @@ const size_t MESH_HEADER = 0xF241282943FF0001;
 const size_t MUTI_MESH_HEADER = 0xF242191756FF0003;
 const aiPostProcessSteps assimp_load_process =
     aiProcess_Triangulate | aiProcess_FlipUVs;
+class MeshFunctions;
 class Mesh {
    private:
     GLuint vertex_array, vertex_buffer, index_buffer;
-    std::vector<GLuint> buffers, textures;
+    std::vector<GLuint> buffers;
     GLenum primitive_type;
     IndexStatus index_status;
     GLuint restart_index;
+    GLenum index_type;
+    GLsizei mesh_count;
 
    public:
     Mesh();
@@ -104,13 +109,17 @@ class Mesh {
     Mesh& operator=(Mesh&&) noexcept = default;
     Mesh& operator=(const Mesh&) = delete;
     const std::vector<GLuint>& GetBuffer();
-    const std::vector<GLuint>& GetTexture();
     void SetPrimitiveType(GLenum type);
     void SetRestartIndex(GLuint index);
     void InitMesh(GLsizei* stride_array, GLintptr* start_array = nullptr);
+    GLenum GetIndexType();
+    GLenum GetPrimitiveType();
+    GLuint GetCount();
+    GLuint GetRestartIndex();
     GLuint GetVAO();
     GLuint GetVBO();
     GLuint GetIBO();
+    friend class MeshFunctions;
     friend void LoadMesh(const Byte* data, size_t length, Mesh& mesh);
     friend void LoadMesh(std::ifstream& in, Mesh& mesh);
     friend void LoadMesh(std::string_view path, Mesh& mesh);
@@ -266,7 +275,8 @@ class RenderObject {
     void disable();
     virtual void draw(const Matrix4f& mvp_matrix,
                       const Matrix4f& model_matrix,
-                      const Matrix4f& normal_matrix) = 0;
+                      const Matrix4f& normal_matrix,
+                      const Vector3f& eye_dir) = 0;
     virtual ~RenderObject() {}
 };
 
