@@ -1,10 +1,8 @@
-#include "bl_initialization.hpp"
-#include "bl_render.hpp"
-#include "bl_mesh.hpp"
 #include "bl_log.hpp"
-#include "bl_resource_load.hpp"
+#include "bl_initialization.hpp"
+#include "boundless.hpp"
+#include "bl_render.hpp"
 
-#include "glm/glm.hpp"
 #include "glad/glad.h"
 #include "glfw/glfw3.h"
 
@@ -22,9 +20,42 @@ int main()
 	{
 		exit(EXIT_FAILURE);
 	}
-
+	ADSRender::ADSData adsd {0,Vector4f(0.8f,0.7f,0.2f)};
+	LightProp* ld = ADSBase::lightdata;
+	ld[0].enable = true;
+	ld[0].edited = true;
+	ld[0].isSpot = false;
+	ld[0].isLocal = true;
+	ld[0].position = Vector3f(2.0f,0.0f,0.0f);
+	ld[0].color = Vector3f(0.98f,0.98f,0.98f);
+	ld[0].ambient = Vector3f(0.1f,0.1f,0.1f);
+	ld[0].constantAttenuation = 0.2f;
+	ld[0].linearAttenuation = 0.7f;
+	ld[0].quadraticAttenuation = 0.01f;
+	ld[1].edited = false;
+	MaterialProp* mp = ADSBase::materialdata;
+	mp[0].edited = true;
+	mp[0].shininess = 8.0f;
+	mp[0].ambient = Vector3f(0.1f,0.1f,0.1f);
+	mp[0].diffuse = Vector3f(0.6f,0.6f,0.6f);
+	mp[0].emission = Vector3f(0.0f,0.0f,0.0f);
+	mp[0].specular = Vector3f(0.2f,0.2f,0.2f);
+	ADSBase::Init();
+	ADSBase::UpdateUniformBuffer();
+	Renderer rend;
+	Transform* node = rend.AddObject<ADSRender>(Vector3d(0.0,1.0,1.0),Vector3d(1.0,1.0,1.0),Quaterniond::Identity(), &adsd);
+	ADSRender* ro = node->render_obj;
+	Mesh& mesh = ro->mesh;
+	LoadMesh("./mesh/example.mesh",mesh);
+	ro->enable();
+	
 	while (!glfwWindowShouldClose(Init::windowinfo.window_ptr))
 	{
+		process_input(Init::windowinfo.window_ptr);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+		rend.DrawAll();
+
 		glfwSwapBuffers(Init::windowinfo.window_ptr);
 		glfwPollEvents();
 	}

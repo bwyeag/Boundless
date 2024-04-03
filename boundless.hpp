@@ -345,7 +345,7 @@ class Renderer {
             transform_head = tfo;
         }
 
-        tfo->roenble = true;
+        tfo->roenble = false;
         tfo->edited = true;
         tfo->position = vp;
         tfo->scale = vs;
@@ -372,7 +372,7 @@ class Renderer {
         tfo->next_brother = parent->child_head;
         parent->child_head = tfo;
 
-        tfo->roenble = true;
+        tfo->roenble = false;
         tfo->edited = true;
         tfo->position = vp;
         tfo->scale = vs;
@@ -399,7 +399,7 @@ class Renderer {
         tfo->next_brother = brother->next_brother;
         brother->next_brother = tfo;
 
-        tfo->roenble = true;
+        tfo->roenble = false;
         tfo->edited = true;
         tfo->position = vp;
         tfo->scale = vs;

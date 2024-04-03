@@ -27,7 +27,7 @@ class MeshFunctions {
         glVertexArrayAttribBinding(mesh.GetVAO(), ads_vertnormal_attrib, 0);
     }
 } struct LightProp {
-    Vector3f ambient;  // true->锥光
+    Vector3f ambient;  
     Vector3f color;    // 颜色
     Vector3f position;  // if (isLocal) 表示光的位置; else 表示光的方向
     Vector3f halfVector;  // 锥光的半程向量
