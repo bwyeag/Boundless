@@ -6,7 +6,9 @@
  */
 #ifndef _BOUNDLESS_DATA_STRUCT_HPP_FILE_
 #define _BOUNDLESS_DATA_STRUCT_HPP_FILE_
-
+#include <utility>
+#include <exception>
+#include <cstdlib>
 namespace Boundless {
 template <typename DT, size_t chunk_size = 128>
 class object_pool {
@@ -21,6 +23,7 @@ class object_pool {
     };
     obj_chunk* chunk_head;
     block* free_head;
+public:
     explicit object_pool(size_t init_chunks) {
         if (init_chunks == 0) {
             chunk_head = nullptr;
@@ -28,7 +31,8 @@ class object_pool {
             return;
         }
 
-        obj_chunk* p = new obj_chunk();
+        obj_chunk* p = (obj_chunk*)malloc(sizeof(obj_chunk));
+        if (!p) throw std::bad_alloc();
         for (size_t i = 0; i < chunk_size - 1; i--) {
             p->blocks[i].ptr = &p->blocks[i + 1];
         }
@@ -38,7 +42,8 @@ class object_pool {
         chunk_head = p;
 
         for (size_t i = 1; i < init_chunks; i++) {
-            obj_chunk* p = new obj_chunk();
+        obj_chunk* p = (obj_chunk*)malloc(sizeof(obj_chunk));
+        if (!p) throw std::bad_alloc();
             for (size_t i = 0; i < chunk_size - 1; i--) {
                 p->blocks[i].ptr = &p->blocks[i + 1];
             }
@@ -48,12 +53,13 @@ class object_pool {
             chunk_head = p;
         }
     }
-    object_pool& object_pool(object_pool&&) = delete;
-    object_pool& object_pool(const object_pool&) = delete;
+    object_pool(object_pool&&) = delete;
+    object_pool(const object_pool&) = delete;
     object_pool& operator=(object_pool&&) = delete;
     object_pool& operator=(const object_pool&) = delete;
     void block_allocate() {
-        obj_chunk* p = new obj_chunk();
+        obj_chunk* p = (obj_chunk*)malloc(sizeof(obj_chunk));
+        if (!p) throw std::bad_alloc();
         for (size_t i = 0; i < chunk_size - 1; i--) {
             p->blocks[i].ptr = &p->blocks[i + 1];
         }
@@ -84,13 +90,13 @@ class object_pool {
         free_head = ((block*)ptr)->ptr;
     }
     ~object_pool() {
-        obj_chunk *p = chunk_head, q;
+        obj_chunk *p = chunk_head,* q;
         while (!p) {
             q = p->next;
-            delete p;
+            free(p);
             p = q;
         }
     }
-}
+};
 }  // namespace Boundless
 #endif  //!_BOUNDLESS_DATA_STRUCT_HPP_FILE_

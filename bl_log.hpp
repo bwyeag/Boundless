@@ -33,11 +33,11 @@ namespace Boundless
 #ifdef _DEBUG
     namespace OpenGLError
     {
-        static const char *GetObjectType(GLenum o);
-        static const char *GetSourceFrom(GLenum s);
-        static const char *GetSourceType(GLenum s);
-        static const char *GetSeverity(GLenum s);
-        static void ErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
+        const char *GetObjectType(GLenum o);
+        const char *GetSourceFrom(GLenum s);
+        const char *GetSourceType(GLenum s);
+        const char *GetSeverity(GLenum s);
+        void ErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
     }
 #endif //_DEBUG
 }

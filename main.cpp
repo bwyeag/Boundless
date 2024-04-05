@@ -20,7 +20,9 @@ int main()
 	{
 		exit(EXIT_FAILURE);
 	}
-	ADSRender::ADSData adsd {0,Vector4f(0.8f,0.7f,0.2f)};
+	ADSRender::ADSData adsd;
+	adsd.materialindex = 0;
+	adsd.vertexcolor = Vector4f(0.2f,0.3f,0.1f,1.0f);
 	LightProp* ld = ADSBase::lightdata;
 	ld[0].enable = true;
 	ld[0].edited = true;
@@ -44,14 +46,14 @@ int main()
 	ADSBase::UpdateUniformBuffer();
 	Renderer rend;
 	Transform* node = rend.AddObject<ADSRender>(Vector3d(0.0,1.0,1.0),Vector3d(1.0,1.0,1.0),Quaterniond::Identity(), &adsd);
-	ADSRender* ro = node->render_obj;
+	ADSRender* ro = dynamic_cast<ADSRender*>(node->render_obj);
 	Mesh& mesh = ro->mesh;
-	LoadMesh("./mesh/example.mesh",mesh);
+	Mesh::MakeSphere(mesh,1.0f,32,32,VertexData::POSITION);
 	ro->enable();
 	
 	while (!glfwWindowShouldClose(Init::windowinfo.window_ptr))
 	{
-		process_input(Init::windowinfo.window_ptr);
+		Init::process_input(Init::windowinfo.window_ptr);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 		rend.DrawAll();

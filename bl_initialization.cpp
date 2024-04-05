@@ -429,7 +429,7 @@ namespace Boundless::Init
         {
             glEnable(GL_DEBUG_OUTPUT);
             glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-            glDebugMessageCallback(Log::OpenGLError::ErrorCallback, nullptr);
+            glDebugMessageCallback(OpenGLError::ErrorCallback, nullptr);
             glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
             INFO("OPENGL", "启用调试上下文成功");
         }

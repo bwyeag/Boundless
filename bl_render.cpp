@@ -1,6 +1,28 @@
 #include "bl_render.hpp"
 
 namespace Boundless {
+const GLuint ads_vertpos_attrib = 4;
+const GLuint ads_vertnormal_attrib = 5;
+const GLuint ads_mvpmatrix_uniform = 0;
+const GLuint ads_modelmatrix_uniform = 1;
+const GLuint ads_normalmatrix_uniform = 2;
+const GLuint ads_vertcolor_uniform = 3;
+const GLuint ads_eyedirection_uniform = 6;
+const GLuint ads_materialindex_uniform = 7;
+const char* ads_vertshader_path = ".\\shader\\classic_shader_vertex.glsl";
+const char* ads_fragshader_path = ".\\shader\\classic_shader_fragment.glsl";
+const GLsizei ads_stride_array[1]{24};
+void MeshFunctions::InitMeshADS(Mesh& mesh) {
+    mesh.InitMesh(ads_stride_array);
+    glEnableVertexArrayAttrib(mesh.GetVAO(), ads_vertpos_attrib);
+    glEnableVertexArrayAttrib(mesh.GetVAO(), ads_vertnormal_attrib);
+    glVertexArrayAttribFormat(mesh.GetVAO(), ads_vertpos_attrib, 3, GL_FLOAT,
+                              GL_FALSE, 0);
+    glVertexArrayAttribFormat(mesh.GetVAO(), ads_vertnormal_attrib, 3, GL_FLOAT,
+                              GL_FALSE, 12);
+    glVertexArrayAttribBinding(mesh.GetVAO(), ads_vertpos_attrib, 0);
+    glVertexArrayAttribBinding(mesh.GetVAO(), ads_vertnormal_attrib, 0);
+}
 void ADSBase::Init() {
     glCreateBuffers(1, &uniform_buffer);
     glNamedBufferStorage(uniform_buffer,
@@ -62,16 +84,16 @@ void ADSBase::UpdateUniformBuffer() {
         }
     }
 }
-virtual void ADSRender::draw(const Matrix4f& mvp_matrix,
-                             const Matrix4f& model_matrix,
-                             const Matrix4f& normal_matrix,
-                             const Vector3f& eye_dir) {
+void ADSRender::draw(const Matrix4f& mvp_matrix,
+                     const Matrix4f& model_matrix,
+                     const Matrix4f& normal_matrix,
+                     const Vector3f& eye_dir) {
     glBindVertexArray(mesh.GetVAO());
-    shader.UseProgram();
+    Program::UseProgram(ADSBase::shader);
     glProgramUniform1i(ADSBase::shader.GetID(), ads_materialindex_uniform,
                        ((ADSData*)data_ptr)->materialindex);
-    glProgramUniform4fv(ADSBase::shader.GetID(), ads_vertcolor_uniform,
-                        &((ADSData*)data_ptr)->vertexcolor.x());
+    glProgramUniform4fv(ADSBase::shader.GetID(), ads_vertcolor_uniform, 1,
+                        &(((ADSData*)data_ptr)->vertexcolor.x()));
     glProgramUniformMatrix4fv(ADSBase::shader.GetID(), ads_mvpmatrix_uniform, 1,
                               GL_FALSE, &mvp_matrix(0, 0));
     glProgramUniformMatrix4fv(ADSBase::shader.GetID(), ads_modelmatrix_uniform,
@@ -80,12 +102,12 @@ virtual void ADSRender::draw(const Matrix4f& mvp_matrix,
                               1, GL_FALSE, &normal_matrix(0, 0));
     glProgramUniform3fv(ADSBase::shader.GetID(), ads_eyedirection_uniform, 1,
                         &eye_dir.x());
-    if (mesh.index_status == IndexStatus::NO_INDEX) {
+    if (mesh.GetIndexStatus() == IndexStatus::NO_INDEX) {
         glDrawArrays(mesh.GetPrimitiveType(), 0, mesh.GetCount());
-    } else if (mesh.index_status == IndexStatus::ONLY_INDEX) {
+    } else if (mesh.GetIndexStatus() == IndexStatus::ONLY_INDEX) {
         glDrawElements(mesh.GetPrimitiveType(), mesh.GetCount(),
                        mesh.GetIndexType(), 0);
-    } else if (mesh.index_status == IndexStatus::RESTART_INDEX) {
+    } else if (mesh.GetIndexStatus() == IndexStatus::RESTART_INDEX) {
         glEnable(GL_PRIMITIVE_RESTART);
         glPrimitiveRestartIndex(mesh.GetRestartIndex());
         glDrawElements(mesh.GetPrimitiveType(), mesh.GetCount(),
@@ -93,4 +115,5 @@ virtual void ADSRender::draw(const Matrix4f& mvp_matrix,
         glDisable(GL_PRIMITIVE_RESTART);
     }
 }
+ADSRender::~ADSRender() {}
 }  // namespace Boundless

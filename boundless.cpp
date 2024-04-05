@@ -14,8 +14,9 @@ Byte* CompressData(const Byte* data, size_t* length, size_t space) {
     *(uint64*)data_ptr = *length;
     data_ptr += sizeof(uint64) * 2;
     *(uint64*)(data_ptr - sizeof(uint64)) = dlen - sizeof(uint64) * 2;
-    int res = zlib::compress2(data_ptr, data_ptr - sizeof(uint64), data,
-                              *length, compress_level);
+    int res =
+        zlib::compress2(data_ptr, (zlib::uLong*)(data_ptr - sizeof(uint64)),
+                        data, *length, compress_level);
     if (res != Z_OK) {
         free(compress_data);
         throw zlib::ZlibException(res);
@@ -30,9 +31,9 @@ Byte* UncompressData(const Byte* data, size_t* ret_length) {
         throw std::bad_alloc();
     }
     *ret_length = *(uint64*)data;
-    int res = zlib::uncompress2(uncompress_data, ret_length,
+    int res = zlib::uncompress2(uncompress_data, (zlib::uLong*)(ret_length),
                                 data + sizeof(uint64) * 2,
-                                *(uint64*)(data + sizeof(uint64)));
+                                (zlib::uLong*)(data + sizeof(uint64)));
     if (res != Z_OK) {
         free(uncompress_data);
         throw zlib::ZlibException(res);
@@ -40,18 +41,44 @@ Byte* UncompressData(const Byte* data, size_t* ret_length) {
     return uncompress_data;
 }
 
-Mesh::Mesh() {}
+Mesh::Mesh() {
+    vertex_array = 0;
+}
 Mesh::Mesh(IndexStatus indexst, size_t bufcnt) {
     glCreateVertexArrays(1, &vertex_array);
     glCreateBuffers(1, &vertex_buffer);
-    buffers.resize(bufcnt);
-    glCreateBuffers(bufcnt, &buffers[0]);
+    if (bufcnt > 0) {
+        buffers.resize(bufcnt);
+        glCreateBuffers(bufcnt, &buffers[0]);
+    }
     index_status = indexst;
     if (indexst != IndexStatus::NO_INDEX) {
         glCreateBuffers(1, &index_buffer);
+    } else {
+        index_buffer = 0;
     }
 }
-void Mesh::InitMesh(GLsizei* stride_array, GLintptr* start_array = nullptr) {
+void Mesh::TryInit(IndexStatus indexst) {
+    if (vertex_array == 0) {
+        glCreateVertexArrays(1, &vertex_array);
+        glCreateBuffers(1, &vertex_buffer);
+        index_status = indexst;
+        if (indexst != IndexStatus::NO_INDEX) {
+            glCreateBuffers(1, &index_buffer);
+        } else {
+            index_buffer = 0;
+        }
+    } else if (indexst != IndexStatus::NO_INDEX) {
+        if (index_buffer == 0) {
+            glCreateBuffers(1, &index_buffer);
+        }
+    } else {
+        if (index_buffer != 0) {
+            glDeleteBuffers(1, &index_buffer);
+        }
+    }
+}
+void Mesh::InitMesh(const GLsizei* stride_array, const GLintptr* start_array) {
     if (index_status != IndexStatus::NO_INDEX) {
         glVertexArrayElementBuffer(vertex_array, index_buffer);
     }
@@ -92,6 +119,9 @@ inline GLenum Mesh::GetIndexType() {
 inline GLenum Mesh::GetPrimitiveType() {
     return primitive_type;
 }
+inline IndexStatus Mesh::GetIndexStatus() {
+    return index_status;
+}
 inline GLuint Mesh::GetCount() {
     return mesh_count;
 }
@@ -104,14 +134,15 @@ inline GLuint Mesh::GetVBO() {
 inline GLuint Mesh::GetIBO() {
     return index_buffer;
 }
-void LoadMesh(const Byte* data, size_t length, Mesh& mesh) {
-    if (*(uint64*)data != 0xF241282943FF0001) {
+void Mesh::LoadMesh(const Byte* data, Mesh& mesh) {
+    if (*(uint64*)data != MESH_HEADER) {
         throw std::runtime_error("Mesh head code error.");
     }
     size_t len;
-    data = UncompressData(data + sizeof(uint64), &len);
-    MeshFile& head = *static_cast<MeshFile*>(data);
-    Byte* dp = data + sizeof(MeshFile) + sizeof(DataRange) * head.buffer_count;
+    Byte* dt = UncompressData(data + sizeof(uint64), &len);
+    MeshFile& head = *(MeshFile*)(dt);
+    // const Byte* dp = dt + sizeof(MeshFile) + sizeof(DataRange) *
+    // head.buffer_count;
     mesh.primitive_type = head.primitive_type;
     mesh.index_status = head.index_status;
     mesh.restart_index = head.restart_index;
@@ -124,22 +155,22 @@ void LoadMesh(const Byte* data, size_t length, Mesh& mesh) {
         glCreateBuffers(head.buffer_count, &mesh.buffers[0]);
     }
     glNamedBufferStorage(mesh.vertex_buffer, head.vbo.length,
-                         data + head.vbo.start, GL_MAP_READ_BIT);
+                         dt + head.vbo.start, GL_MAP_READ_BIT);
     if (mesh.index_status != IndexStatus::NO_INDEX) {
         glCreateBuffers(1, &mesh.index_buffer);
         glNamedBufferStorage(mesh.index_buffer, head.ibo.length,
-                             data + head.ibo.start, GL_MAP_READ_BIT);
+                             dt + head.ibo.start, GL_MAP_READ_BIT);
     }
     for (size_t i = 0; i < head.buffer_count; i++) {
         glNamedBufferStorage(mesh.buffers[i], head.buffers[i].length,
-                             data + head.buffers[i].start, GL_MAP_READ_BIT);
+                             dt + head.buffers[i].start, GL_MAP_READ_BIT);
     }
-    free(data);
+    free(dt);
 }
-void LoadMesh(std::ifstream& in, Mesh& mesh) {
+void Mesh::LoadMesh(std::ifstream& in, Mesh& mesh) {
     size_t length;
     std::streampos cur = in.tellg();
-    in.seekg(sizeof(uint64), std::ios::cur);
+    in.seekg(sizeof(uint64), std::ios_base::cur);
     in.read((char*)&length, sizeof(uint64));
     in.seekg(cur);
     Byte* data = (Byte*)malloc(length);
@@ -147,22 +178,27 @@ void LoadMesh(std::ifstream& in, Mesh& mesh) {
         throw std::bad_alloc();
     }
     in.read((char*)data, length);
-    LoadMesh(data, length, mesh);
+    LoadMesh(data, mesh);
     free(data);
 }
-inline void LoadMesh(std::string_view path, Mesh& mesh) {
-    std::ifstream fin(path, std::ios::in | std::ios::binary);
+inline void Mesh::LoadMesh(const std::string& path, Mesh& mesh) {
+    std::ifstream fin(path, std::ios_base::in | std::ios_base::binary);
     if (!fin.is_open()) {
         throw std::runtime_error("Cannot open file:" + path);
     }
     LoadMesh(fin, mesh);
     fin.close();
 }
-inline void LoadMesh(const char* path, Mesh& mesh) {
-    LoadMesh(std::string_view(path), mesh);
+inline void Mesh::LoadMesh(const char* path, Mesh& mesh) {
+    std::ifstream fin(path, std::ios_base::in | std::ios_base::binary);
+    if (!fin.is_open()) {
+        throw std::runtime_error(std::string("Cannot open file:") + path);
+    }
+    LoadMesh(fin, mesh);
+    fin.close();
 }
-void LoadMeshMultple(std::string_view path, std::vector<Mesh>& meshs) {
-    std::ifstream fin(path, std::ios::in | std::ios::binary);
+void Mesh::LoadMeshMultple(const std::string& path, std::vector<Mesh>& meshs) {
+    std::ifstream fin(path, std::ios_base::in | std::ios_base::binary);
     if (!fin.is_open()) {
         throw std::runtime_error("Cannot open file:" + path);
     }
@@ -179,16 +215,16 @@ void LoadMeshMultple(std::string_view path, std::vector<Mesh>& meshs) {
     }
     fin.close();
 }
-void LoadMeshMultple(const char* path, std::vector<Mesh>& meshs) {
-    LoadMeshMultple(std::string_view(path), meshs);
+void Mesh::LoadMeshMultple(const char* path, std::vector<Mesh>& meshs) {
+    LoadMeshMultple(std::string(path), meshs);
 }
-Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
+Byte* Mesh::PackMesh(size_t* ret_length, const Mesh& mesh) {
     size_t full_size =
         sizeof(MeshFile) + sizeof(DataRange) * mesh.buffers.size();
     GLint64 length;
     glGetNamedBufferParameteri64v(mesh.vertex_buffer, GL_BUFFER_SIZE, &length);
     full_size += static_cast<size_t>(length);
-    if (mesh.index_status > 31) {
+    if (mesh.index_status != IndexStatus::NO_INDEX) {
         glGetNamedBufferParameteri64v(mesh.index_buffer, GL_BUFFER_SIZE,
                                       &length);
         full_size += static_cast<size_t>(length);
@@ -202,7 +238,7 @@ Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
         throw std::bad_alloc();
     }
     MeshFile& head = *(MeshFile*)cur;
-    cur += sizeof(MeshFile) + sizeof(DataRange) * mesh.buffers;
+    cur += sizeof(MeshFile) + sizeof(DataRange) * mesh.buffers.size();
     head.primitive_type = mesh.primitive_type;
     head.index_status = mesh.index_status;
     head.restart_index = mesh.restart_index;
@@ -212,15 +248,15 @@ Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
 
     Byte* ptr;
     glGetNamedBufferParameteri64v(mesh.vertex_buffer, GL_BUFFER_SIZE,
-                                  &head.vbo.length);
+                                  (GLint64*)&head.vbo.length);
     head.vbo.start = cur - data;
     cur += head.vbo.length;
     ptr = (Byte*)glMapNamedBuffer(mesh.vertex_buffer, GL_READ_ONLY);
     memcpy(cur, ptr, head.vbo.length);
     glUnmapNamedBuffer(mesh.vertex_buffer);
-    if (mesh.index_status > 31) {
+    if (mesh.index_status != IndexStatus::NO_INDEX) {
         glGetNamedBufferParameteri64v(mesh.index_buffer, GL_BUFFER_SIZE,
-                                      &head.ibo.length);
+                                      (GLint64*)&head.ibo.length);
         head.ibo.start = cur - data;
         cur += head.ibo.length;
         ptr = (Byte*)glMapNamedBuffer(mesh.index_buffer, GL_READ_ONLY);
@@ -229,8 +265,9 @@ Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
     }
     for (size_t i = 0; i < mesh.buffers.size(); i++) {
         glGetNamedBufferParameteri64v(mesh.buffers[i], GL_BUFFER_SIZE,
-                                      &head.buffers[i].length);
-        head.buffers[i].start = cur - data cur += head.buffers[i].length;
+                                      (GLint64*)&head.buffers[i].length);
+        head.buffers[i].start = cur - data;
+        cur += head.buffers[i].length;
         ptr = (Byte*)glMapNamedBuffer(mesh.buffers[i], GL_READ_ONLY);
         memcpy(cur, ptr, head.buffers[i].length);
         glUnmapNamedBuffer(mesh.buffers[i]);
@@ -241,11 +278,11 @@ Byte* PackMesh(size_t* ret_length, const Mesh& mesh) {
     *ret_length = full_size;
     return res;
 }
-void PackMesh(std::string_view path, const Mesh& mesh) {
+void Mesh::PackMesh(const std::string& path, const Mesh& mesh) {
     size_t length;
     Byte* data = PackMesh(&length, mesh);
-    std::ofstream fout(path,
-                       std::ios::out | std::ios::binary | std::ios::trunc);
+    std::ofstream fout(path, std::ios_base::out | std::ios_base::binary |
+                                 std::ios_base::trunc);
     if (!fout.is_open()) {
         throw std::runtime_error("Cannot open file:" + path);
     }
@@ -253,22 +290,22 @@ void PackMesh(std::string_view path, const Mesh& mesh) {
     free(data);
     fout.close();
 }
-void Mesh::GenMeshFile(const aiMesh* ptr, const string& save_path) {
+void Mesh::GenMeshFile(const aiMesh* ptr, const std::string& save_path) {
     size_t length;
     Byte* data = GenMeshFile(ptr, save_path, &length);
-    std::ofstream fout(save_path,
-                       std::ios::out | std::ios::binary | std::ios::trunc);
+    std::ofstream fout(save_path, std::ios_base::out | std::ios_base::binary |
+                                      std::ios_base::trunc);
     if (!fout.is_open()) {
         throw std::runtime_error("Cannot open file:" + save_path);
     }
-    fout.write(data, length);
+    fout.write((char*)data, length);
     fout.close();
 }
 Byte* Mesh::GenMeshFile(const aiMesh* pointer,
-                        std::string_view name,
+                        const std::string& name,
                         size_t* ret_length) {
     MeshFile head;
-    head.restart_index = UINT64_MAX;
+    head.restart_index = UINT32_MAX;
     head.buffer_count = 0;
     size_t vertex_length = sizeof(aiVector3D);  // 单个顶点数据的长度
     std::cout << "File:" << name << '\t' << pointer->mName.C_Str() << '\n';
@@ -282,11 +319,11 @@ Byte* Mesh::GenMeshFile(const aiMesh* pointer,
         for (size_t i = 0; i < pointer->GetNumUVChannels(); i++) {
             if (pointer->HasTextureCoords(i)) {
                 vertex_length += sizeof(ai_real) * pointer->mNumUVComponents[i];
-                cout << "\n\t"
-                     << (pointer->HasTextureCoordsName(i)
-                             ? pointer->mTextureCoordsNames[i]->C_Str()
-                             : "NULL")
-                     << ": vec" << pointer->mNumUVComponents[i];
+                std::cout << "\n\t"
+                          << (pointer->HasTextureCoordsName(i)
+                                  ? pointer->mTextureCoordsNames[i]->C_Str()
+                                  : "NULL")
+                          << ": vec" << pointer->mNumUVComponents[i];
             }
         }
     }
@@ -314,7 +351,7 @@ Byte* Mesh::GenMeshFile(const aiMesh* pointer,
         head.primitive_type = GL_NONE;
         head.ibo.start = UINT64_MAX;
         head.ibo.length = 0ULL;
-        head.mesh_count = pointer->mVertices;
+        head.mesh_count = pointer->mNumVertices;
     }
     std::cout << std::endl;
 
@@ -361,14 +398,14 @@ Byte* Mesh::GenMeshFile(const aiMesh* pointer,
     Byte* data = CompressData(mesh_data, &length, sizeof(uint64));
     free(mesh_data);
     *(uint64*)data = MESH_HEADER;
-    cout << "Vertices Count:" << pointer->mNumVertices << '\n';
-    cout << "Indices Count:" << pointer->mNumFaces * 3 << '\n';
-    cout << "Data size:" << rl + sizeof(uint64) << "Bytes\n";
-    cout << "END;" << endl;
+    std::cout << "Vertices Count:" << pointer->mNumVertices << '\n';
+    std::cout << "Indices Count:" << pointer->mNumFaces * 3 << '\n';
+    std::cout << "Data size:" << rl + sizeof(uint64) << "Bytes\n";
+    std::cout << "END;" << std::endl;
     *ret_length = length + sizeof(uint64);
     return data;
 }
-void Mesh::GenMeshFile(std::string_view path) {
+void Mesh::GenMeshFile(const std::string& path) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, assimp_load_process);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
@@ -382,9 +419,9 @@ void Mesh::GenMeshFile(std::string_view path) {
     }
 }
 inline void Mesh::GenMeshFile(const char* path) {
-    GenMeshFile(std::string_view(path));
+    GenMeshFile(std::string(path));
 }
-void Mesh::GenMeshFileMerged(std::string_view path) {
+void Mesh::GenMeshFileMerged(const std::string& path) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, assimp_load_process);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
@@ -412,13 +449,563 @@ void Mesh::GenMeshFileMerged(std::string_view path) {
     }
 }
 inline void Mesh::GenMeshFileMerged(const char* path) {
-    GenMeshFileMerged(std::string_view(path));
+    GenMeshFileMerged(std::string(path));
+}
+void Mesh::MakeCube(Mesh& mesh, float size, VertexData df) {
+    size = abs(size);
+    if (df == VertexData::POSITION) {
+        mesh.primitive_type = GL_TRIANGLE_STRIP;
+        mesh.restart_index = UINT16_MAX;
+        mesh.index_type = GL_UNSIGNED_SHORT;
+        mesh.mesh_count = 17;
+        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        size /= 2.0f;
+        const float vparr[24]{
+            -size, size,  size,  size,  size,  size,  -size, size,
+            -size, size,  size,  -size, -size, -size, -size, size,
+            -size, -size, -size, -size, size,  size,  -size, size,
+        };
+        const uint16 viarr[17]{0, 1, 2, 3, 4, 5, 6, 7, UINT16_MAX,
+                               2, 4, 0, 6, 1, 7, 3, 5};
+        glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                             GL_STATIC_READ);
+        glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+        glNamedBufferStorage(mesh.vertex_array, sizeof(vparr), vparr,
+                             GL_STATIC_READ);
+        glVertexArrayVertexBuffer(mesh.vertex_array, 0, mesh.vertex_buffer, 0,
+                                  12);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 0);
+        glVertexArrayAttribFormat(mesh.vertex_array, 0, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 0, 0);
+    } else if (df == VertexData::NORMAL) {
+        mesh.primitive_type = GL_TRIANGLE_STRIP;
+        mesh.restart_index = UINT32_MAX;
+        mesh.index_type = GL_UNSIGNED_SHORT;
+        mesh.mesh_count = 17;
+        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        size /= 2.0f;
+        const float vparr[144]{
+            -size, size,  size,  0.0f,  1.0f,  0.0f,  size,  size,
+            size,  0.0f,  1.0f,  0.0f,  -size, size,  -size, 0.0f,
+            1.0f,  0.0f,  size,  size,  -size, 0.0f,  1.0f,  0.0f,
+
+            -size, size,  -size, 0.0f,  0.0f,  -1.0f, size,  size,
+            -size, 0.0f,  0.0f,  -1.0f, -size, -size, -size, 0.0f,
+            0.0f,  -1.0f, size,  -size, -size, 0.0f,  0.0f,  -1.0f,
+
+            -size, -size, -size, 0.0f,  -1.0f, 0.0f,  size,  -size,
+            -size, 0.0f,  -1.0f, 0.0f,  -size, -size, size,  0.0f,
+            -1.0f, 0.0f,  size,  -size, size,  0.0f,  -1.0f, 0.0f,
+
+            -size, size,  size,  0.0f,  0.0f,  1.0f,  size,  size,
+            size,  0.0f,  0.0f,  1.0f,  -size, -size, size,  0.0f,
+            0.0f,  1.0f,  size,  -size, size,  0.0f,  0.0f,  1.0f,
+
+            -size, size,  size,  -1.0f, 0.0f,  0.0f,  -size, -size,
+            size,  -1.0f, 0.0f,  0.0f,  -size, size,  -size, -1.0f,
+            0.0f,  0.0f,  -size, -size, -size, -1.0f, 0.0f,  0.0f,
+
+            size,  size,  size,  1.0f,  0.0f,  0.0f,  size,  -size,
+            size,  1.0f,  0.0f,  0.0f,  size,  size,  -size, 1.0f,
+            0.0f,  0.0f,  size,  -size, -size, 1.0f,  0.0f,  0.0f};
+        const uint16 viarr[]{
+            0,  1,  2,  3,  UINT16_MAX, 4,  5,  6,  7,  UINT16_MAX,
+            8,  9,  10, 11, UINT16_MAX, 12, 13, 14, 15, UINT16_MAX,
+            16, 17, 18, 19, UINT16_MAX, 20, 21, 22, 23, UINT16_MAX};
+        glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                             GL_STATIC_READ);
+        glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+        glNamedBufferStorage(mesh.vertex_array, sizeof(vparr), vparr,
+                             GL_STATIC_READ);
+        glVertexArrayVertexBuffer(mesh.vertex_array, 0, mesh.vertex_buffer, 0,
+                                  24);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 0);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 1);
+        glVertexArrayAttribFormat(mesh.vertex_array, 0, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribFormat(mesh.vertex_array, 1, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 0, 0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 1, 0);
+    }
+}
+// static void Mesh::MakePlane(Mesh& mesh,
+//                             float size,
+//                             int xdiv,
+//                             int ydiv,
+//                             VertexData df) {}
+void Mesh::MakeSphere(Mesh& mesh, float r, int rdiv, int hdiv, VertexData df) {
+    r = std::abs(r);
+    rdiv = std::max(rdiv, 8);
+    hdiv = std::max(hdiv, 8);
+    if (df == VertexData::POSITION) {
+        mesh.primitive_type = GL_TRIANGLE_STRIP;
+        mesh.restart_index = UINT32_MAX;
+        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        int cnt = rdiv * hdiv + 2;
+        float *vparr = (float*)malloc(sizeof(float) * 3 * cnt), *cur = vparr;
+        if (!vparr)
+            throw std::bad_alloc();
+        *(cur++) = 0.0f;
+        *(cur++) = 0.0f;
+        *(cur++) = r;
+        *(cur++) = 0.0f;
+        *(cur++) = 0.0f;
+        *(cur++) = -r;
+        for (int i = 0; i < rdiv; i++) {
+            float t = 2 * BL_MATH_PI / rdiv * i;
+            Vector3f rvec(cosf(t), sinf(t), 0.0f);
+            Vector3f zvec(0.0f, 0.0f, 1.0f);
+            for (int j = 1; j < hdiv + 1; j++) {
+                t = -BL_MATH_PI / 2 + BL_MATH_PI / (rdiv + 1) * j;
+                Vector3f pos = r * (rvec * cosf(t) + zvec * sinf(t));
+                *(cur++) = pos.x();
+                *(cur++) = pos.y();
+                *(cur++) = pos.z();
+            }
+        }
+        glNamedBufferStorage(mesh.vertex_array, sizeof(vparr), vparr,
+                             GL_STATIC_READ);
+        glVertexArrayVertexBuffer(mesh.vertex_array, 0, mesh.vertex_buffer, 0,
+                                  12);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 0);
+        glVertexArrayAttribFormat(mesh.vertex_array, 0, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 0, 0);
+        if (cnt < UINT16_MAX) {
+            mesh.index_type = GL_UNSIGNED_SHORT;
+            mesh.mesh_count =
+                rdiv * (hdiv * 2 + 1) + 2 * (rdiv / 2 * 5 + rdiv % 2 * 3);
+            uint16 *viarr = (uint16*)malloc(sizeof(uint16) * mesh.mesh_count),
+                   *cur = viarr;
+            if (!viarr)
+                throw std::bad_alloc();
+            for (int i = 0; i < rdiv - 1; i++) {
+                for (int j = 0; j < hdiv - 1; j++) {
+                    int k = 2 + j + i * hdiv;
+                    *(cur++) = static_cast<uint16>(k);
+                    *(cur++) = static_cast<uint16>(k + hdiv);
+                    *(cur++) = static_cast<uint16>(k + 1);
+                }
+                int k = 2 + hdiv - 1 + (rdiv - 1) * hdiv;
+                *(cur++) = static_cast<uint16>(k);
+                *(cur++) = static_cast<uint16>(k + hdiv);
+                *(cur++) = UINT16_MAX;
+            }
+            int offset = (rdiv - 1) * (hdiv * 2 + 1);
+            for (int j = 0; j < hdiv - 1; j++) {
+                *(cur++) = static_cast<uint16>(j + 2 + offset);
+                *(cur++) = static_cast<uint16>(j + 2);
+                *(cur++) = static_cast<uint16>(j + 2 + 1);
+            }
+            *(cur++) = static_cast<uint16>(hdiv - 1 + 2 + offset);
+            *(cur++) = static_cast<uint16>(hdiv - 1 + 2);
+            *(cur++) = UINT16_MAX;
+
+            int i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint16>(2 + (i - 2) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = static_cast<uint16>(2 + (i - 1) * hdiv);
+                *(cur++) = static_cast<uint16>(2 + i * hdiv);
+                *(cur++) = UINT16_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) = static_cast<uint16>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+                *(cur++) = static_cast<uint16>(2 + hdiv);
+            } else {
+                *(cur++) = static_cast<uint16>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+            }
+
+            i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint16>(2 + (i - 2) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint16>(2 + (i - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint16>(2 + i * hdiv + hdiv - 1);
+                *(cur++) = UINT16_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) =
+                    static_cast<uint16>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint16>(2 + hdiv - 1);
+                *(cur++) = static_cast<uint16>(2 + 2 * hdiv - 1);
+            } else {
+                *(cur++) = 0;
+                *(cur++) =
+                    static_cast<uint16>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint16>(2 + hdiv - 1);
+            }
+            glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                                 GL_STATIC_READ);
+            glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+            free(viarr);
+        } else {
+            mesh.index_type = GL_UNSIGNED_INT;
+            mesh.mesh_count =
+                rdiv * (hdiv * 2 + 1) + 2 * (rdiv / 2 * 5 + rdiv % 2 * 3);
+            uint32 *viarr = (uint32*)malloc(sizeof(uint32) * mesh.mesh_count),
+                   *cur = viarr;
+            if (!viarr)
+                throw std::bad_alloc();
+            for (int i = 0; i < rdiv - 1; i++) {
+                for (int j = 0; j < hdiv - 1; j++) {
+                    int k = 2 + j + i * hdiv;
+                    *(cur++) = static_cast<uint32>(k);
+                    *(cur++) = static_cast<uint32>(k + hdiv);
+                    *(cur++) = static_cast<uint32>(k + 1);
+                }
+                int k = 2 + hdiv - 1 + (rdiv - 1) * hdiv;
+                *(cur++) = static_cast<uint32>(k);
+                *(cur++) = static_cast<uint32>(k + hdiv);
+                *(cur++) = UINT32_MAX;
+            }
+            int offset = (rdiv - 1) * (hdiv * 2 + 1);
+            for (int j = 0; j < hdiv - 1; j++) {
+                *(cur++) = static_cast<uint32>(j + 2 + offset);
+                *(cur++) = static_cast<uint32>(j + 2);
+                *(cur++) = static_cast<uint32>(j + 2 + 1);
+            }
+            *(cur++) = static_cast<uint32>(hdiv - 1 + 2 + offset);
+            *(cur++) = static_cast<uint32>(hdiv - 1 + 2);
+            *(cur++) = UINT32_MAX;
+
+            int i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint32>(2 + (i - 2) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = static_cast<uint32>(2 + (i - 1) * hdiv);
+                *(cur++) = static_cast<uint32>(2 + i * hdiv);
+                *(cur++) = UINT32_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) = static_cast<uint32>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+                *(cur++) = static_cast<uint32>(2 + hdiv);
+            } else {
+                *(cur++) = static_cast<uint32>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+            }
+
+            i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint32>(2 + (i - 2) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint32>(2 + (i - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint32>(2 + i * hdiv + hdiv - 1);
+                *(cur++) = UINT32_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) =
+                    static_cast<uint32>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint32>(2 + hdiv - 1);
+                *(cur++) = static_cast<uint32>(2 + 2 * hdiv - 1);
+            } else {
+                *(cur++) = 0;
+                *(cur++) =
+                    static_cast<uint32>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint32>(2 + hdiv - 1);
+            }
+            glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                                 GL_STATIC_READ);
+            glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+            free(viarr);
+        }
+        free(vparr);
+    } else if (df == VertexData::NORMAL) {
+        mesh.primitive_type = GL_TRIANGLE_STRIP;
+        mesh.restart_index = UINT32_MAX;
+        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        int cnt = rdiv * hdiv + 2;
+        float *vparr = (float*)malloc(sizeof(float) * 3 * 2 * cnt),
+              *cur = vparr;
+        if (!vparr)
+            throw std::bad_alloc();
+        *(cur++) = 0.0f;
+        *(cur++) = 0.0f;
+        *(cur++) = r;
+        *(cur++) = 0.0f;
+        *(cur++) = 0.0f;
+        *(cur++) = -r;
+        for (int i = 0; i < rdiv; i++) {
+            float t = 2 * BL_MATH_PI / rdiv * i;
+            Vector3f rvec(cosf(t), sinf(t), 0.0f);
+            Vector3f zvec(0.0f, 0.0f, 1.0f);
+            for (int j = 1; j < hdiv + 1; j++) {
+                t = -BL_MATH_PI / 2 + BL_MATH_PI / (rdiv + 1) * j;
+                Vector3f pos = rvec * cosf(t) + zvec * sinf(t);
+                cur += 3;
+                *(cur++) = pos.x();
+                *(cur++) = pos.y();
+                *(cur++) = pos.z();
+                cur -= 6;
+                pos *= r;
+                *(cur++) = pos.x();
+                *(cur++) = pos.y();
+                *(cur++) = pos.z();
+            }
+        }
+        glNamedBufferStorage(mesh.vertex_array, sizeof(vparr), vparr,
+                             GL_STATIC_READ);
+        glVertexArrayVertexBuffer(mesh.vertex_array, 0, mesh.vertex_buffer, 0,
+                                  12);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 0);
+        glVertexArrayAttribFormat(mesh.vertex_array, 0, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 0, 0);
+        if (cnt < UINT16_MAX) {
+            mesh.index_type = GL_UNSIGNED_SHORT;
+            mesh.mesh_count =
+                rdiv * (hdiv * 2 + 1) + 2 * (rdiv / 2 * 5 + rdiv % 2 * 3);
+            uint16 *viarr = (uint16*)malloc(sizeof(uint16) * mesh.mesh_count),
+                   *cur = viarr;
+            if (!viarr)
+                throw std::bad_alloc();
+            for (int i = 0; i < rdiv - 1; i++) {
+                for (int j = 0; j < hdiv - 1; j++) {
+                    int k = 2 + j + i * hdiv;
+                    *(cur++) = static_cast<uint16>(k);
+                    *(cur++) = static_cast<uint16>(k + hdiv);
+                    *(cur++) = static_cast<uint16>(k + 1);
+                }
+                int k = 2 + hdiv - 1 + (rdiv - 1) * hdiv;
+                *(cur++) = static_cast<uint16>(k);
+                *(cur++) = static_cast<uint16>(k + hdiv);
+                *(cur++) = UINT16_MAX;
+            }
+            int offset = (rdiv - 1) * (hdiv * 2 + 1);
+            for (int j = 0; j < hdiv - 1; j++) {
+                *(cur++) = static_cast<uint16>(j + 2 + offset);
+                *(cur++) = static_cast<uint16>(j + 2);
+                *(cur++) = static_cast<uint16>(j + 2 + 1);
+            }
+            *(cur++) = static_cast<uint16>(hdiv - 1 + 2 + offset);
+            *(cur++) = static_cast<uint16>(hdiv - 1 + 2);
+            *(cur++) = UINT16_MAX;
+
+            int i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint16>(2 + (i - 2) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = static_cast<uint16>(2 + (i - 1) * hdiv);
+                *(cur++) = static_cast<uint16>(2 + i * hdiv);
+                *(cur++) = UINT16_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) = static_cast<uint16>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+                *(cur++) = static_cast<uint16>(2 + hdiv);
+            } else {
+                *(cur++) = static_cast<uint16>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+            }
+
+            i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint16>(2 + (i - 2) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint16>(2 + (i - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint16>(2 + i * hdiv + hdiv - 1);
+                *(cur++) = UINT16_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) =
+                    static_cast<uint16>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint16>(2 + hdiv - 1);
+                *(cur++) = static_cast<uint16>(2 + 2 * hdiv - 1);
+            } else {
+                *(cur++) = 0;
+                *(cur++) =
+                    static_cast<uint16>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint16>(2 + hdiv - 1);
+            }
+            glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                                 GL_STATIC_READ);
+            glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+            free(viarr);
+        } else {
+            mesh.index_type = GL_UNSIGNED_INT;
+            uint32 *viarr = (uint32*)malloc(
+                       sizeof(uint32) * (rdiv * (hdiv * 2 + 1) +
+                                         2 * (rdiv / 2 * 5 + rdiv % 2 * 3))),
+                   *cur = viarr;
+            if (!viarr)
+                throw std::bad_alloc();
+            for (int i = 0; i < rdiv - 1; i++) {
+                for (int j = 0; j < hdiv - 1; j++) {
+                    int k = 2 + j + i * hdiv;
+                    *(cur++) = static_cast<uint32>(k);
+                    *(cur++) = static_cast<uint32>(k + hdiv);
+                    *(cur++) = static_cast<uint32>(k + 1);
+                }
+                int k = 2 + hdiv - 1 + (rdiv - 1) * hdiv;
+                *(cur++) = static_cast<uint32>(k);
+                *(cur++) = static_cast<uint32>(k + hdiv);
+                *(cur++) = UINT32_MAX;
+            }
+            int offset = (rdiv - 1) * (hdiv * 2 + 1);
+            for (int j = 0; j < hdiv - 1; j++) {
+                *(cur++) = static_cast<uint32>(j + 2 + offset);
+                *(cur++) = static_cast<uint32>(j + 2);
+                *(cur++) = static_cast<uint32>(j + 2 + 1);
+            }
+            *(cur++) = static_cast<uint32>(hdiv - 1 + 2 + offset);
+            *(cur++) = static_cast<uint32>(hdiv - 1 + 2);
+            *(cur++) = UINT32_MAX;
+
+            int i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint32>(2 + (i - 2) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = static_cast<uint32>(2 + (i - 1) * hdiv);
+                *(cur++) = static_cast<uint32>(2 + i * hdiv);
+                *(cur++) = UINT32_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) = static_cast<uint32>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+                *(cur++) = static_cast<uint32>(2 + hdiv);
+            } else {
+                *(cur++) = static_cast<uint32>(2 + (rdiv - 1) * hdiv);
+                *(cur++) = 1;
+                *(cur++) = 2;
+            }
+
+            i = rdiv - 1;
+            while (i > 1) {
+                *(cur++) = static_cast<uint32>(2 + (i - 2) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint32>(2 + (i - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint32>(2 + i * hdiv + hdiv - 1);
+                *(cur++) = UINT32_MAX;
+                i -= 2;
+            }
+            if (i == 1) {
+                *(cur++) =
+                    static_cast<uint32>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = 0;
+                *(cur++) = static_cast<uint32>(2 + hdiv - 1);
+                *(cur++) = static_cast<uint32>(2 + 2 * hdiv - 1);
+            } else {
+                *(cur++) = 0;
+                *(cur++) =
+                    static_cast<uint32>(2 + (rdiv - 1) * hdiv + hdiv - 1);
+                *(cur++) = static_cast<uint32>(2 + hdiv - 1);
+            }
+            glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                                 GL_STATIC_READ);
+            glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+            free(viarr);
+        }
+        free(vparr);
+    }
+}
+// void Mesh::MakeTorus(Mesh& mesh,
+//                             float r,
+//                             float d,
+//                             int rdiv,
+//                             int hdiv,
+//                             VertexData df) {}
+void Mesh::MakeCubord(Mesh& mesh, float a, float b, float c, VertexData df) {
+    if (df == VertexData::POSITION) {
+        mesh.primitive_type = GL_TRIANGLE_STRIP;
+        mesh.restart_index = UINT16_MAX;
+        mesh.index_type = GL_UNSIGNED_SHORT;
+        mesh.mesh_count = 17;
+        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        a /= 2.0f;
+        b /= 2.0f;
+        c /= 2.0f;
+        const float vparr[24]{
+            -a, b,  c,  a, b,  c,  -a, b,  -c, a, b,  -c,
+            -a, -b, -c, a, -b, -c, -a, -b, c,  a, -b, c,
+        };
+        const uint16 viarr[17]{0, 1, 2, 3, 4, 5, 6, 7, UINT16_MAX,
+                               2, 4, 0, 6, 1, 7, 3, 5};
+        glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                             GL_STATIC_READ);
+        glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+        glNamedBufferStorage(mesh.vertex_array, sizeof(vparr), vparr,
+                             GL_STATIC_READ);
+        glVertexArrayVertexBuffer(mesh.vertex_array, 0, mesh.vertex_buffer, 0,
+                                  12);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 0);
+        glVertexArrayAttribFormat(mesh.vertex_array, 0, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 0, 0);
+    } else if (df == VertexData::NORMAL) {
+        mesh.primitive_type = GL_TRIANGLE_STRIP;
+        mesh.restart_index = UINT16_MAX;
+        mesh.index_type = GL_UNSIGNED_SHORT;
+        mesh.mesh_count = 17;
+        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        a /= 2.0f;
+        b /= 2.0f;
+        c /= 2.0f;
+        const float vparr[144]{
+            -a, b,  c,  0.0f,  1.0f,  0.0f,  a,  b,  c,  0.0f,  1.0f,  0.0f,
+            -a, b,  -c, 0.0f,  1.0f,  0.0f,  a,  b,  -c, 0.0f,  1.0f,  0.0f,
+
+            -a, b,  -c, 0.0f,  0.0f,  -1.0f, a,  b,  -c, 0.0f,  0.0f,  -1.0f,
+            -a, -b, -c, 0.0f,  0.0f,  -1.0f, a,  -b, -c, 0.0f,  0.0f,  -1.0f,
+
+            -a, -b, -c, 0.0f,  -1.0f, 0.0f,  a,  -b, -c, 0.0f,  -1.0f, 0.0f,
+            -a, -b, c,  0.0f,  -1.0f, 0.0f,  a,  -b, c,  0.0f,  -1.0f, 0.0f,
+
+            -a, b,  c,  0.0f,  0.0f,  1.0f,  a,  b,  c,  0.0f,  0.0f,  1.0f,
+            -a, -b, c,  0.0f,  0.0f,  1.0f,  a,  -b, c,  0.0f,  0.0f,  1.0f,
+
+            -a, b,  c,  -1.0f, 0.0f,  0.0f,  -a, -b, c,  -1.0f, 0.0f,  0.0f,
+            -a, b,  -c, -1.0f, 0.0f,  0.0f,  -a, -b, -c, -1.0f, 0.0f,  0.0f,
+
+            a,  b,  c,  1.0f,  0.0f,  0.0f,  a,  -b, c,  1.0f,  0.0f,  0.0f,
+            a,  b,  -c, 1.0f,  0.0f,  0.0f,  a,  -b, -c, 1.0f,  0.0f,  0.0f};
+        const uint16 viarr[]{
+            0,  1,  2,  3,  UINT16_MAX, 4,  5,  6,  7,  UINT16_MAX,
+            8,  9,  10, 11, UINT16_MAX, 12, 13, 14, 15, UINT16_MAX,
+            16, 17, 18, 19, UINT16_MAX, 20, 21, 22, 23, UINT16_MAX};
+        glNamedBufferStorage(mesh.index_buffer, sizeof(viarr), viarr,
+                             GL_STATIC_READ);
+        glVertexArrayElementBuffer(mesh.vertex_array, mesh.index_buffer);
+        glNamedBufferStorage(mesh.vertex_array, sizeof(vparr), vparr,
+                             GL_STATIC_READ);
+        glVertexArrayVertexBuffer(mesh.vertex_array, 0, mesh.vertex_buffer, 0,
+                                  24);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 0);
+        glEnableVertexArrayAttrib(mesh.vertex_array, 1);
+        glVertexArrayAttribFormat(mesh.vertex_array, 0, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribFormat(mesh.vertex_array, 1, 3, GL_FLOAT, GL_FALSE,
+                                  0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 0, 0);
+        glVertexArrayAttribBinding(mesh.vertex_array, 1, 0);
+    }
 }
 Mesh::~Mesh() {
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteBuffers(1, &vertex_buffer);
     glDeleteBuffers(buffers.size(), &buffers[0]);
-    if (index_status > 31) {
+    if (index_status != IndexStatus::NO_INDEX) {
         glDeleteBuffers(1, &index_buffer);
     }
 }
@@ -429,11 +1016,11 @@ Texture::~Texture() {
     glDeleteTextures(1, &texture_id);
 }
 
-void LoadTexture(std::string_view path,
-                 Texture& tex,
-                 GLsizei add_mipmap_level,
-                 GLsizei samples,
-                 GLboolean fixedsample) {
+void Texture::LoadTexture(const std::string& path,
+                          Texture& tex,
+                          GLsizei add_mipmap_level,
+                          GLsizei samples,
+                          GLboolean fixedsample) {
     if (add_mipmap_level < 0) {
         throw std::logic_error("argument add_mipmap_level can't be negative.");
     }
@@ -448,10 +1035,11 @@ void LoadTexture(std::string_view path,
             throw std::runtime_error("Texture head code error.");
         }
     }
-    size_t length;
+    size_t length, end;
     length = in.tellg();
     in.seekg(0, std::ios::end);
-    length = in.tellg() - length;
+    end = in.tellg();
+    length = end - length;
     Byte* data = (Byte*)malloc(length);
     if (!data) {
         in.close();
@@ -469,7 +1057,7 @@ void LoadTexture(std::string_view path,
     tex.depth = tf.mip[0].depth;
     if (tf.enable_swizzle == GL_TRUE) {
         glTextureParameteriv(tex.texture_id, GL_TEXTURE_SWIZZLE_RGBA,
-                             tf.swizzle);
+                             (GLint*)tf.swizzle);
     }
     if (tf.target == GL_TEXTURE_1D) {
         glTextureStorage1D(tex.texture_id, tf.mipLevels + add_mipmap_level,
@@ -485,7 +1073,7 @@ void LoadTexture(std::string_view path,
                            tf.mip[0].height);
         for (GLsizei i = 0; i < tf.mipLevels; i++) {
             glTextureSubImage2D(tex.texture_id, i, 0, 0, tf.mip[i].width,
-                                tf.mip[i].height tf.format, tf.type,
+                                tf.mip[i].height, tf.format, tf.type,
                                 data + tf.mip[i].range.start);
         }
     } else if (tf.target == GL_TEXTURE_3D) {
@@ -494,7 +1082,7 @@ void LoadTexture(std::string_view path,
                            tf.mip[0].height, tf.mip[0].depth);
         for (GLsizei i = 0; i < tf.mipLevels; i++) {
             glTextureSubImage3D(tex.texture_id, i, 0, 0, 0, tf.mip[i].width,
-                                tf.mip[i].height, tf.mip[i].depth tf.format,
+                                tf.mip[i].height, tf.mip[i].depth, tf.format,
                                 tf.type, data + tf.mip[i].range.start);
         }
     } else if (tf.target == GL_TEXTURE_1D_ARRAY) {
@@ -538,20 +1126,18 @@ void LoadTexture(std::string_view path,
         }
     }
 }
-inline void LoadTexture(
-    const char* path,
-    Texture& tex,
-    GLsizei add_mipmap_level = 0,
-    GLsizei samples = default_texture_samples,
-    GLboolean fixedsample = default_texture_fixedsamplelocation) {
-    LoadTexture(std::string_view(path), tex, add_mipmap_level, samples,
-                fixedsample);
+inline void Texture::LoadTexture(const char* path,
+                                 Texture& tex,
+                                 GLsizei add_mipmap_level,
+                                 GLsizei samples,
+                                 GLboolean fixedsample) {
+    LoadTexture(std::string(path), tex, add_mipmap_level, samples, fixedsample);
 }
-void PackTexture(std::string_view save_path,
-                 Texture& tex,
-                 GLsizei level,
-                 GLenum format,
-                 GLenum type) {
+void Texture::PackTexture(const std::string& save_path,
+                          Texture& tex,
+                          GLsizei level,
+                          GLenum format,
+                          GLenum type) {
     size_t length;
     Byte* data = PackTexture(&length, tex, level, format, type);
     std::ofstream out(save_path,
@@ -564,29 +1150,38 @@ void PackTexture(std::string_view save_path,
     free(data);
 }
 constexpr size_t TextureInternalFormatSize(GLenum type) {
-    if (GL_R3_G3_B2 || GL_R8 || GL_R8_SNORM || GL_R8I || GL_R8UI || GL_RGBA2) {
+    if (type == GL_R3_G3_B2 || type == GL_R8 || type == GL_R8_SNORM ||
+        type == GL_R8I || type == GL_R8UI || type == GL_RGBA2) {
         return 1;
-    } else if (GL_R16 || GL_R16_SNORM || GL_R16F || GL_R16I || GL_R16UI ||
-               GL_RG16 || GL_RG8 || GL_RG8_SNORM || GL_RG8I || GL_RG8UI ||
-               GL_RGB5_A1 || GL_RGB565 || GL_RGBA4) {
+    } else if (type == GL_R16 || type == GL_R16_SNORM || type == GL_R16F ||
+               type == GL_R16I || type == GL_R16UI || type == GL_RG16 ||
+               type == GL_RG8 || type == GL_RG8_SNORM || type == GL_RG8I ||
+               type == GL_RG8UI || type == GL_RGB5_A1 || type == GL_RGB565 ||
+               type == GL_RGBA4) {
         return 2;
-    } else if (GL_RGB8 || GL_RGB8_SNORM || GL_RGB8I || GL_RGB8UI || GL_SRGB8) {
+    } else if (type == GL_RGB8 || type == GL_RGB8_SNORM || type == GL_RGB8I ||
+               type == GL_RGB8UI || type == GL_SRGB8) {
         return 3;
-    } else if (GL_R11F_G11F_B10F || GL_R32F || GL_R32I || GL_R32UI ||
-               GL_RG16_SNORM || GL_RG16F || GL_RG16I || GL_RG16UI ||
-               GL_RGB10_A2 || GL_RGB9_E5 || GL_RGBA8 || GL_RGBA8_SNORM ||
-               GL_RGBA8I || GL_RGBA8UI || GL_SRGB8_ALPHA8 || GL_RGB16) {
+    } else if (type == GL_R11F_G11F_B10F || type == GL_R32F ||
+               type == GL_R32I || type == GL_R32UI || type == GL_RG16_SNORM ||
+               type == GL_RG16F || type == GL_RG16I || type == GL_RG16UI ||
+               type == GL_RGB10_A2 || type == GL_RGB9_E5 || type == GL_RGBA8 ||
+               type == GL_RGBA8_SNORM || type == GL_RGBA8I ||
+               type == GL_RGBA8UI || type == GL_SRGB8_ALPHA8 ||
+               type == GL_RGB16) {
         return 4;
-    } else if (GL_RGB16_SNORM || GL_RGB16F || GL_RGB16I || GL_RGB16UI ||
-               GL_RGBA12) {
+    } else if (type == GL_RGB16_SNORM || type == GL_RGB16F ||
+               type == GL_RGB16I || type == GL_RGB16UI || type == GL_RGBA12) {
         return 6;
-    } else if (GL_RG32F || GL_RG32I || GL_RG32UI || GL_RGBA16 ||
-               GL_RGBA16_SNORM || GL_RGBA16F || GL_RGBA16I || GL_RGBA16I ||
-               GL_RGBA16UI) {
+    } else if (type == GL_RG32F || type == GL_RG32I || type == GL_RG32UI ||
+               type == GL_RGBA16 || type == GL_RGBA16_SNORM ||
+               type == GL_RGBA16F || type == GL_RGBA16I || type == GL_RGBA16I ||
+               type == GL_RGBA16UI) {
         return 8;
-    } else if (GL_RGB32F || GL_RGB32I || GL_RGB32UI) {
+    } else if (type == GL_RGB32F || type == GL_RGB32I || type == GL_RGB32UI) {
         return 12;
-    } else if (GL_RGBA32F || GL_RGBA32I || GL_RGBA32UI) {
+    } else if (type == GL_RGBA32F || type == GL_RGBA32I ||
+               type == GL_RGBA32UI) {
         return 16;
     } else {
         return 0;
@@ -682,11 +1277,11 @@ constexpr size_t TextureExternalFormatSize(GLenum format, GLenum type) {
     res *= TypeSize(type);
     return res;
 }
-Byte* PackTexture(size_t* ret_length,
-                  Texture& tex,
-                  GLsizei level,
-                  GLenum format,
-                  GLenum type) {
+Byte* Texture::PackTexture(size_t* ret_length,
+                           Texture& tex,
+                           GLsizei level,
+                           GLenum format,
+                           GLenum type) {
     // 统计纹理文件数据的长度
     size_t length = sizeof(TextureFileN) + sizeof(TextureMipData) * level,
            maxlen = 0;
@@ -714,11 +1309,11 @@ Byte* PackTexture(size_t* ret_length,
         }
         mips[i].range.length = cnt * format_size;
         if (mips[i].range.length > maxlen) {
-            maxlen = miplen[i];
+            maxlen = mips[i].range.length;
         }
         length += mips[i].range.length;
     }
-    Byte *data = (Byte*)malloc(length), cur = data;
+    Byte *data = (Byte*)malloc(length), *cur = data;
     if (!data) {
         throw std::bad_alloc();
     }
@@ -733,7 +1328,7 @@ Byte* PackTexture(size_t* ret_length,
     for (GLsizei i = 0; i < level; i++) {
         glGetTextureImage(tex.texture_id, i, format, type, maxlen, 0);
         void* map = glMapNamedBuffer(ppb, GL_READ_ONLY);
-        memcpy(cur, map, miplen[i]);
+        memcpy(cur, map, mips[i].range.length);
         glUnmapNamedBuffer(ppb);
         head.mip[i].range.start = cur - data;
         cur += head.mip[i].range.length;
@@ -743,11 +1338,11 @@ Byte* PackTexture(size_t* ret_length,
     // 生成TextureFile头数据
     memcpy(head.mip, mips, sizeof(TextureMipData) * level);
     head.target = tex.target;
-    glGetTextureLevelParameteriv(tex.texture_id, i, GL_TEXTURE_INTERNAL_FORMAT,
+    glGetTextureLevelParameteriv(tex.texture_id, 0, GL_TEXTURE_INTERNAL_FORMAT,
                                  (GLint*)&head.internal_format);
     head.format = format;
     head.type = type;
-    glGetTextureParameterIuiv(tex.texture_id, i, GL_TEXTURE_SWIZZLE_RGBA,
+    glGetTextureParameterIuiv(tex.texture_id, GL_TEXTURE_SWIZZLE_RGBA,
                               head.swizzle);
     // 检查是否需要RGBA乱序
     if (head.swizzle[0] == GL_RED && head.swizzle[1] == GL_GREEN &&
@@ -776,18 +1371,19 @@ Byte* PackTexture(size_t* ret_length,
         length - sizeof(TextureFileN) - sizeof(TextureMipData) * level;
     // 压缩
     Byte* compress = CompressData(data, &length, sizeof(uint64));
+    *ret_length = length;
     free(data);
     *(uint64*)compress = TEXTURE_HEADER;
     return compress;
 }
-inline void PackTexture(const char* save_path,
-                        Texture& tex,
-                        GLsizei level,
-                        GLenum format,
-                        GLenum type) {
-    PackTexture(std::string_view(path), tex, level, format, type);
+inline void Texture::PackTexture(const char* save_path,
+                                 Texture& tex,
+                                 GLsizei level,
+                                 GLenum format,
+                                 GLenum type) {
+    PackTexture(std::string(save_path), tex, level, format, type);
 }
-inline void Texture::GenTextureFile(std::string_view path) {
+inline void Texture::GenTextureFile(const std::string& path) {
     TextureFile<1> tf;
     tf.target = GL_TEXTURE_2D;
     tf.type = GL_UNSIGNED_BYTE;
@@ -795,38 +1391,50 @@ inline void Texture::GenTextureFile(std::string_view path) {
     tf.mipLevels = 1;
     tf.slices = 0;
     int n;
-    Byte *data =
-             (Byte*)stbi_load(path, &tf.mip[0].width, &tf.mip[0].height, &n, 0),
-         copy;
+    Byte *data = (Byte*)stbi_load(path.c_str(), &tf.mip[0].width,
+                                  &tf.mip[0].height, &n, 0),
+         *copy;
     if (data == nullptr) {
         throw std::runtime_error("STB_IMAGE:无法加载图像");
     }
     tf.totalSize = tf.mip[0].range.length =
-        th.width * th.height * n * sizeof(uint8_t);
+        tf.mip[0].width * tf.mip[0].height * n * sizeof(uint8_t);
     tf.mip[0].depth = 0;
     tf.mip[0].range.start = sizeof(tf);
-    std::cout << "File:\t" << path;
+    std::cout << "File:\t" << path << '\n';
     std::cout << "Image Data Size:\t" << tf.totalSize << "Bytes\n";
     switch (n) {
         case 1:
             tf.internal_format = GL_R8;
             tf.format = GL_RED;
-            tf.swizzle = {GL_RED, GL_ZERO, GL_ZERO, GL_ZERO};
+            tf.swizzle[0] = GL_RED;
+            tf.swizzle[1] = GL_ZERO;
+            tf.swizzle[2] = GL_ZERO;
+            tf.swizzle[3] = GL_ZERO;
             break;
         case 2:
             tf.internal_format = GL_RG8;
             tf.format = GL_RG;
-            tf.swizzle = {GL_RED, GL_GREEN, GL_BLUE, GL_ZERO};
+            tf.swizzle[0] = GL_RED;
+            tf.swizzle[1] = GL_GREEN;
+            tf.swizzle[2] = GL_ZERO;
+            tf.swizzle[3] = GL_ZERO;
             break;
         case 3:
             tf.internal_format = GL_RGB8;
             tf.format = GL_RGB;
-            tf.swizzle = {GL_RED, GL_GREEN, GL_BLUE, GL_ZERO};
+            tf.swizzle[0] = GL_RED;
+            tf.swizzle[1] = GL_GREEN;
+            tf.swizzle[2] = GL_BLUE;
+            tf.swizzle[3] = GL_ZERO;
             break;
         case 4:
             tf.internal_format = GL_RGBA8;
             tf.format = GL_RGBA;
-            tf.swizzle = {GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA};
+            tf.swizzle[0] = GL_RED;
+            tf.swizzle[1] = GL_GREEN;
+            tf.swizzle[2] = GL_BLUE;
+            tf.swizzle[3] = GL_ALPHA;
             break;
         default:
             throw std::runtime_error("图像通道数错误");
@@ -848,7 +1456,7 @@ inline void Texture::GenTextureFile(std::string_view path) {
     out.close();
 }
 void Texture::GenTextureFile(const char* path) {
-    GenTextureFile(std::string_view(path));
+    GenTextureFile(std::string(path));
 }
 inline Program::Program() {
     program_id = glCreateProgram();
@@ -856,7 +1464,7 @@ inline Program::Program() {
 inline Program::~Program() {
     glDeleteProgram(program_id);
 }
-inline ShaderInfo& Program::operator[](size_t index) {
+inline Program::ShaderInfo& Program::operator[](size_t index) {
     return program_shader[index];
 };
 void Program::PrintLog() const {
@@ -881,7 +1489,7 @@ void Program::AddShader(std::string_view path, GLenum type) {
     glAttachShader(program_id, shader_id);
     program_shader.push_back({type, shader_id});
 }
-void AddShaderByCode(std::string_view data, GLenum type) {
+void Program::AddShaderByCode(std::string_view data, GLenum type) {
     GLuint shader_id = Program::ComplieShader(data, type);
     glAttachShader(program_id, shader_id);
     program_shader.push_back({type, shader_id});
@@ -898,15 +1506,17 @@ inline void Program::UnUseProgram() {
     glUseProgram(0);
 }
 
-static GLuint Program::LoadShader(std::string_view path, GLenum type) {
-    std::ifstream reader(path, std::ios::in);
+GLuint Program::LoadShader(std::string_view path, GLenum type) {
+    std::ifstream reader(std::string(path), std::ios::in);
     if (!reader.is_open()) {
         throw std::runtime_error("Cannot open file.");
     }
-    std::string shader_code(std::istreambuf_iterator<char>(reader),
-                            std::istreambuf_iterator<char>());
+    std::stringstream buffer;
+    buffer << reader.rdbuf();
+    std::string shader_code(buffer.str());
     reader.close();
-    GLuint shader_id = glCreateShader(type), success;
+    GLuint shader_id = glCreateShader(type);
+    GLint success;
     const char* res = shader_code.c_str();
     const GLint length = static_cast<GLint>(shader_code.size());
     glShaderSource(shader_id, 1, &res, &length);
@@ -930,11 +1540,12 @@ static GLuint Program::LoadShader(std::string_view path, GLenum type) {
     }
     return shader_id;
 }
-static inline GLuint Program::LoadShader(const char* path, GLenum type) {
+inline GLuint Program::LoadShader(const char* path, GLenum type) {
     return LoadShader(std::string_view(path), type);
 }
-static GLuint Program::ComplieShader(std::string_view code) {
-    GLuint shader_id = glCreateShader(type), success;
+GLuint Program::ComplieShader(std::string_view code, GLenum type) {
+    GLuint shader_id = glCreateShader(type);
+    GLint success;
     const char* res = code.begin();
     const GLint length = static_cast<GLint>(code.size());
     glShaderSource(shader_id, 1, &res, &length);
@@ -955,7 +1566,9 @@ static GLuint Program::ComplieShader(std::string_view code) {
             glDeleteShader(shader_id);
             throw std::runtime_error("OpenGL:着色器编译错误:");
         }
+        return 0;
     }
+    return shader_id;
 }
 
 const Matrix4f& Transform::get_model() {
@@ -965,7 +1578,12 @@ const Matrix4f& Transform::get_model() {
         model(1, 1) = static_cast<float>(scale.y());
         model(2, 2) = static_cast<float>(scale.z());
         model(3, 3) = 1.0f;
-        model = rotate.normalize().toRotationMatrix().cast<float>() * model;
+        rotate.normalize();
+        Matrix4f tmp;
+        Eigen::Matrix3f rm = rotate.toRotationMatrix().cast<float>();
+        tmp << rm(0, 0), rm(0, 1), rm(0, 2), 0.0f, rm(1, 0), rm(1, 1), rm(1, 2),
+            0.0f, rm(2, 0), rm(2, 1), rm(2, 2), 0.0f, 0.0f, 0.0f, 0.0f, 1.0f;
+        model = tmp * model;
         model(0, 3) = static_cast<float>(
             position.x() * model(0, 0) + position.y() * model(0, 1) +
             position.z() * model(0, 2) + model(0, 3));
@@ -1013,9 +1631,11 @@ const Matrix4f& Camera::get_proj() {
 const Matrix4f& Camera::get_view() {
     if (editedView) {
         editedView = false;
-        forword = forword.normalize();
-        Vector3d s = Vector3d::normalize(forword.cross(up));
-        Vector3d u = Vector3d::normalize(forword.cross(s));
+        forword.normalize();
+        Vector3d s = forword.cross(up);
+        s.normalize();
+        Vector3d u = forword.cross(s);
+        u.normalize();
         view << static_cast<float>(s.x()), static_cast<float>(s.y()),
             static_cast<float>(s.z()), static_cast<float>(-s.dot(position)),
             static_cast<float>(u.x()), static_cast<float>(u.y()),
@@ -1048,9 +1668,11 @@ const Matrix4f& Camera::get_viewproj_matrix() {
     }
     if (editedView) {
         editedView = false;
-        forword = forword.normalize();
-        Vector3d s = Vector3d::normalize(forword.cross(up));
-        Vector3d u = Vector3d::normalize(forword.cross(s));
+        forword.normalize();
+        Vector3d s = forword.cross(up);
+        s.normalize();
+        Vector3d u = forword.cross(s);
+        u.normalize();
         view << static_cast<float>(s.x()), static_cast<float>(s.y()),
             static_cast<float>(s.z()), static_cast<float>(-s.dot(position)),
             static_cast<float>(u.x()), static_cast<float>(u.y()),
@@ -1065,7 +1687,7 @@ const Matrix4f& Camera::get_viewproj_matrix() {
     }
     return vp_matrix;
 }
-Renderer::Renderer() : transform_head(nullptr) {}
+Renderer::Renderer() : tr_pool(1), ro_pool(1), transform_head(nullptr) {}
 Transform* Renderer::AddTransformNode(const Vector3d& vp,
                                       const Vector3d& vs,
                                       const Quaterniond& qr) {
@@ -1126,15 +1748,16 @@ Transform* Renderer::AddTransformNodeRight(Transform* brother,
 }
 void Renderer::DrawAll() {
     const Matrix4f& vp = camera.get_viewproj_matrix();
-    const Matrix4f& view = camera.get_view();
-    Transform *cur_root = transform_head, p, tp;
+    // const Matrix4f& view = camera.get_view();
+    Transform *cur_root = transform_head, *p, *tp;
+    Vector3f eye_dir = camera.forword.cast<float>();
     while (!cur_root) {
         if (cur_root->enable) {
             mat_stack.push(cur_root->get_model());
             if (cur_root->roenble)
                 cur_root->render_obj->draw(
                     vp * mat_stack.top(), mat_stack.top(),
-                    mat_stack.top().inverse().transpose());
+                    mat_stack.top().inverse().transpose(), eye_dir);
             p = cur_root->child_head;
             if (!p) {
                 draw_ptrstack.push(nullptr);
@@ -1156,8 +1779,8 @@ void Renderer::DrawAll() {
                     if (cur_root->roenble)
                         cur_root->render_obj->draw(
                             vp * mat_stack.top(), mat_stack.top(),
-                            mat_stack.top().inverse().transpose());
-                    tp = p.child_head;
+                            mat_stack.top().inverse().transpose(), eye_dir);
+                    tp = p->child_head;
                     if (!tp) {
                         draw_ptrstack.push(nullptr);
                         do {
@@ -1175,7 +1798,7 @@ void Renderer::DrawAll() {
     }
 }
 Renderer::~Renderer() {
-    Transform *cur_root = transform_head, p, tp;
+    Transform *cur_root = transform_head, *p, *tp;
     while (!cur_root) {
         if (!cur_root->render_obj)
             cur_root->render_obj->~RenderObject();
@@ -1190,7 +1813,7 @@ Renderer::~Renderer() {
                 draw_ptrstack.pop();
                 if (!cur_root->render_obj)
                     cur_root->render_obj->~RenderObject();
-                tp = p.child_head;
+                tp = p->child_head;
                 while (!tp) {
                     draw_ptrstack.push(tp);
                     tp = tp->next_brother;

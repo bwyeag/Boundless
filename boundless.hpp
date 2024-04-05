@@ -7,6 +7,8 @@
 #include "bl_data_struct.hpp"
 #include "bl_log.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -17,6 +19,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include <sstream>  
 
 #include "Eigen/Core"
 #include "Eigen/Geometry"
@@ -24,6 +27,8 @@
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
+
+#define BL_MATH_PI 3.1415926535897932384626
 
 namespace zlib {
 #include <zlib.h>
@@ -77,7 +82,7 @@ enum struct IndexStatus { NO_INDEX = 0, ONLY_INDEX = 32, RESTART_INDEX = 33 };
 struct DataRange {
     size_t start, length;
 };
-
+enum struct VertexData { POSITION, NORMAL };
 struct MeshFile {
     GLenum primitive_type, index_type;
     IndexStatus index_status;
@@ -88,9 +93,8 @@ struct MeshFile {
 };
 const size_t MESH_HEADER = 0xF241282943FF0001;
 const size_t MUTI_MESH_HEADER = 0xF242191756FF0003;
-const aiPostProcessSteps assimp_load_process =
-    aiProcess_Triangulate | aiProcess_FlipUVs;
-class MeshFunctions;
+const aiPostProcessSteps assimp_load_process = static_cast<aiPostProcessSteps>(
+    8U | 8388608U);  // aiProcess_Triangulate | aiProcess_FlipUVs
 class Mesh {
    private:
     GLuint vertex_array, vertex_buffer, index_buffer;
@@ -108,35 +112,58 @@ class Mesh {
     Mesh(const Mesh&) = delete;
     Mesh& operator=(Mesh&&) noexcept = default;
     Mesh& operator=(const Mesh&) = delete;
+    void TryInit(IndexStatus indexst);
     const std::vector<GLuint>& GetBuffer();
     void SetPrimitiveType(GLenum type);
     void SetRestartIndex(GLuint index);
-    void InitMesh(GLsizei* stride_array, GLintptr* start_array = nullptr);
+    void InitMesh(const GLsizei* stride_array, const GLintptr* start_array = nullptr);
     GLenum GetIndexType();
     GLenum GetPrimitiveType();
+    IndexStatus GetIndexStatus();
     GLuint GetCount();
     GLuint GetRestartIndex();
     GLuint GetVAO();
     GLuint GetVBO();
     GLuint GetIBO();
-    friend class MeshFunctions;
-    friend void LoadMesh(const Byte* data, size_t length, Mesh& mesh);
-    friend void LoadMesh(std::ifstream& in, Mesh& mesh);
-    friend void LoadMesh(std::string_view path, Mesh& mesh);
-    friend void LoadMesh(const char* path, Mesh& mesh);
-    friend void LoadMeshMultple(std::string_view path,
+    static void LoadMesh(const Byte* data, Mesh& mesh);
+    static void LoadMesh(std::ifstream& in, Mesh& mesh);
+    static void LoadMesh(const std::string& path, Mesh& mesh);
+    static void LoadMesh(const char* path, Mesh& mesh);
+    static void LoadMeshMultple(const std::string& path,
                                 std::vector<Mesh>& meshs);
-    friend void LoadMeshMultple(const char* path, std::vector<Mesh>& meshs);
-    friend Byte* PackMesh(size_t* ret_length, const Mesh& mesh);
-    friend void PackMesh(std::string_view path, const Mesh& mesh);
-    static void GenMeshFile(const aiMesh* ptr, std::string_view save_path);
+    static void LoadMeshMultple(const char* path, std::vector<Mesh>& meshs);
+    static Byte* PackMesh(size_t* ret_length, const Mesh& mesh);
+    static void PackMesh(const std::string& path, const Mesh& mesh);
+    static void GenMeshFile(const aiMesh* ptr, const std::string& save_path);
     static Byte* GenMeshFile(const aiMesh* ptr,
-                             std::string_view name,
+                             const std::string& name,
                              size_t* ret_length);
-    static void GenMeshFile(std::string_view path);
+    static void GenMeshFile(const std::string& path);
     static void GenMeshFile(const char* path);
-    static void GenMeshFileMerged(std::string_view path);
+    static void GenMeshFileMerged(const std::string& path);
     static void GenMeshFileMerged(const char* path);
+    static void MakeCube(Mesh& mesh, float size, VertexData df);
+    // static void MakePlane(Mesh& mesh,
+    //                       float size,
+    //                       int xdiv,
+    //                       int ydiv,
+    //                       VertexData df);
+    static void MakeSphere(Mesh& mesh,
+                           float r,
+                           int rdiv,
+                           int hdiv,
+                           VertexData df);
+    // static void MakeTorus(Mesh& mesh,
+    //                        float r,
+    //                        float d,
+    //                        int rdiv,
+    //                        int hdiv,
+    //                        VertexData df);
+    static void MakeCubord(Mesh& mesh,
+                           float a,
+                           float b,
+                           float c,
+                           VertexData df);
     ~Mesh();
 };
 constexpr size_t TextureInternalFormatSize(GLenum type);
@@ -182,34 +209,34 @@ class Texture {
     Texture();
     ~Texture();
 
-    friend void LoadTexture(
-        std::string_view path,
+    static void LoadTexture(
+        const std::string& path,
         Texture& tex,
         GLsizei add_mipmap_level = 0,
         GLsizei samples = default_texture_samples,
         GLboolean fixedsample = default_texture_fixedsamplelocation);
-    friend void LoadTexture(
+    static void LoadTexture(
         const char* path,
         Texture& tex,
         GLsizei add_mipmap_level = 0,
         GLsizei samples = default_texture_samples,
         GLboolean fixedsample = default_texture_fixedsamplelocation);
-    friend void PackTexture(std::string_view save_path,
+    static void PackTexture(const std::string& save_path,
                             Texture& tex,
                             GLsizei level,  // 打包的纹理mipmap层级数
                             GLenum format,  // 输出的纹元格式
                             GLenum type);   // 纹元数据类型
-    friend Byte* PackTexture(size_t* ret_length,
+    static Byte* PackTexture(size_t* ret_length,
                              Texture& tex,
                              GLsizei level,
                              GLenum format,
                              GLenum type);
-    friend void PackTexture(const char* save_path,
+    static void PackTexture(const char* save_path,
                             Texture& tex,
                             GLsizei level,
                             GLenum format,
                             GLenum type);
-    static void GenTextureFile(std::string_view path);
+    static void GenTextureFile(const std::string& path);
     static void GenTextureFile(const char* path);
 };
 
@@ -231,7 +258,7 @@ class Program {
     Program(Program&& target) noexcept = default;
     Program& operator=(const Program& target) = delete;
     Program& operator=(Program&& target) noexcept = default;
-    Shader& operator[](size_t index);
+    ShaderInfo& operator[](size_t index);
     ~Program();
 
     void AddShader(std::string_view path, GLenum type);
@@ -244,7 +271,7 @@ class Program {
 
     static GLuint LoadShader(std::string_view path, GLenum type);
     static GLuint LoadShader(const char* path, GLenum type);
-    static GLuint ComplieShader(std::string_view code);
+    static GLuint ComplieShader(std::string_view code, GLenum type);
 };
 class RenderObject;
 class Renderer;
@@ -276,7 +303,7 @@ class RenderObject {
     virtual void draw(const Matrix4f& mvp_matrix,
                       const Matrix4f& model_matrix,
                       const Matrix4f& normal_matrix,
-                      const Vector3f& eye_dir) = 0;
+                      const Vector3f& eye_dir) {}
     virtual ~RenderObject() {}
 };
 
@@ -327,14 +354,14 @@ class Renderer {
     Transform* AddObject(const Vector3d& vp,
                          const Vector3d& vs,
                          const Quaterniond& qr,
-                         typename&&... args) {
+                         arguments&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
         static_assert(
             sizeof(T) == sizeof(RenderObject),
             "Type must have the same size compare with RenderObject.");
         Transform* tfo = tr_pool.allocate();
-        Renderer* rdo = ro_pool.allocate();
+        RenderObject* rdo = ro_pool.allocate();
         tfo->parent = nullptr;
         tfo->child_head = nullptr;
         if (!transform_head) {
@@ -359,7 +386,7 @@ class Renderer {
                               const Vector3d& vp,
                               const Vector3d& vs,
                               const Quaterniond& qr,
-                              typename&&... args) {
+                              arguments&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
         static_assert(
@@ -386,7 +413,7 @@ class Renderer {
                               const Vector3d& vp,
                               const Vector3d& vs,
                               const Quaterniond& qr,
-                              typename&&... args) {
+                              arguments&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
         static_assert(
