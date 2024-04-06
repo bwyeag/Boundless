@@ -8,7 +8,7 @@ void MeshMaker::MakeCube(Mesh& mesh, float size, VertexData df) {
         mesh.restart_index = UINT16_MAX;
         mesh.index_type = GL_UNSIGNED_SHORT;
         mesh.mesh_count = 17;
-        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        mesh.InitIndexStatus(IndexStatus::RESTART_INDEX);
         size /= 2.0f;
         const float vparr[24]{
             -size, size,  size,  size,  size,  size,  -size, size,
@@ -33,7 +33,7 @@ void MeshMaker::MakeCube(Mesh& mesh, float size, VertexData df) {
         mesh.restart_index = UINT32_MAX;
         mesh.index_type = GL_UNSIGNED_SHORT;
         mesh.mesh_count = 17;
-        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        mesh.InitIndexStatus(IndexStatus::RESTART_INDEX);
         size /= 2.0f;
         const float vparr[144]{
             -size, size,  size,  0.0f,  1.0f,  0.0f,  size,  size,
@@ -92,7 +92,7 @@ void MeshMaker::MakeSphere(Mesh& mesh, float r, int rdiv, int hdiv, VertexData d
     if (df == VertexData::POSITION) {
         mesh.primitive_type = GL_TRIANGLE_STRIP;
         mesh.restart_index = UINT32_MAX;
-        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        mesh.InitIndexStatus(IndexStatus::RESTART_INDEX);
         int cnt = rdiv * hdiv + 2;
         float *vparr = (float*)malloc(sizeof(float) * 3 * cnt), *cur = vparr;
         if (!vparr)
@@ -278,7 +278,7 @@ void MeshMaker::MakeSphere(Mesh& mesh, float r, int rdiv, int hdiv, VertexData d
     } else if (df == VertexData::NORMAL) {
         mesh.primitive_type = GL_TRIANGLE_STRIP;
         mesh.restart_index = UINT32_MAX;
-        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        mesh.InitIndexStatus(IndexStatus::RESTART_INDEX);
         int cnt = rdiv * hdiv + 2;
         float *vparr = (float*)malloc(sizeof(float) * 3 * 2 * cnt),
               *cur = vparr;
@@ -486,7 +486,7 @@ void MeshMaker::MakeCubord(Mesh& mesh, float a, float b, float c, VertexData df)
         mesh.restart_index = UINT16_MAX;
         mesh.index_type = GL_UNSIGNED_SHORT;
         mesh.mesh_count = 17;
-        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        mesh.InitIndexStatus(IndexStatus::RESTART_INDEX);
         a /= 2.0f;
         b /= 2.0f;
         c /= 2.0f;
@@ -512,7 +512,7 @@ void MeshMaker::MakeCubord(Mesh& mesh, float a, float b, float c, VertexData df)
         mesh.restart_index = UINT16_MAX;
         mesh.index_type = GL_UNSIGNED_SHORT;
         mesh.mesh_count = 17;
-        mesh.TryInit(IndexStatus::RESTART_INDEX);
+        mesh.InitIndexStatus(IndexStatus::RESTART_INDEX);
         a /= 2.0f;
         b /= 2.0f;
         c /= 2.0f;

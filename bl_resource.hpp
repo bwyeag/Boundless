@@ -1,14 +1,13 @@
 #ifndef _BOUNDLESS_RESOURCE_HPP_FILE_
 #define _BOUNDLESS_RESOURCE_HPP_FILE_
 #include "boundless_base.hpp"
-namespace Boundless
-{
+namespace Boundless {
 ///////////////////////////////////////////////
 // Mesh相关
 //
 
 // 索引状态
-enum struct : int IndexStatus {
+enum struct IndexStatus : int {
     NO_INDEX = 0,
     ONLY_INDEX = 32,
     RESTART_INDEX = 33
@@ -50,6 +49,7 @@ class Mesh {
     GLsizei mesh_count;
 
    public:
+    friend class MeshMaker;
     Mesh();                                    // 不做任何事
     Mesh(IndexStatus indexst, size_t bufcnt);  // 按index状态和buffer数初始化
     Mesh(Mesh&&) noexcept = default;
@@ -75,7 +75,7 @@ class Mesh {
     GLuint getIBO();
     // Load~()方法 从文件加载Mesh(仅加载数据)
     static void LoadMesh(const Byte* data, Mesh& mesh);
-    static void LoadMesh(std::ifstream& in, Mesh& mesh); // 读取下一个Mesh
+    static void LoadMesh(std::ifstream& in, Mesh& mesh);  // 读取下一个Mesh
     static void LoadMesh(const std::string& path, Mesh& mesh);
     static void LoadMesh(const char* path, Mesh& mesh);
     static void LoadMeshMultple(const std::string& path,
@@ -173,6 +173,6 @@ class Texture {
     static void GenTextureFile(const std::string& path);
     static void GenTextureFile(const char* path);
 };
-} // namespace Boundless
+}  // namespace Boundless
 
-#endif //!_BOUNDLESS_RESOURCE_HPP_FILE_
+#endif  //!_BOUNDLESS_RESOURCE_HPP_FILE_

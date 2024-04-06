@@ -1,6 +1,7 @@
 #ifndef _BLUNDLESS_MESH_MAKER_HPP_FILE_
 #define _BLUNDLESS_MESH_MAKER_HPP_FILE_
 #include "boundless_base.hpp"
+#include "bl_resource.hpp"
 
 namespace Boundless {
 class MeshMaker {
