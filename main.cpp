@@ -1,11 +1,12 @@
 #include "bl_log.hpp"
 #include "bl_initialization.hpp"
 #include "boundless.hpp"
-#include "bl_render.hpp"
 
 #include "glad/glad.h"
 #include "glfw/glfw3.h"
 
+#include <iostream>
+#include <cstdlib>
 
 using namespace Boundless;
 int main()
@@ -23,7 +24,7 @@ int main()
 	ADSRender::ADSData adsd;
 	adsd.materialindex = 0;
 	adsd.vertexcolor = Vector4f(0.2f,0.3f,0.1f,1.0f);
-	LightProp* ld = ADSBase::lightdata;
+	LightProp* ld = lightdata;
 	ld[0].enable = true;
 	ld[0].edited = true;
 	ld[0].isSpot = false;
@@ -35,7 +36,7 @@ int main()
 	ld[0].linearAttenuation = 0.7f;
 	ld[0].quadraticAttenuation = 0.01f;
 	ld[1].edited = false;
-	MaterialProp* mp = ADSBase::materialdata;
+	MaterialProp* mp = materialdata;
 	mp[0].edited = true;
 	mp[0].shininess = 8.0f;
 	mp[0].ambient = Vector3f(0.1f,0.1f,0.1f);
@@ -49,7 +50,7 @@ int main()
 	ADSRender* ro = dynamic_cast<ADSRender*>(node->render_obj);
 	Mesh& mesh = ro->mesh;
 	Mesh::MakeSphere(mesh,1.0f,32,32,VertexData::POSITION);
-	ro->enable();
+	ro->base_transform->roenble = true;
 	
 	while (!glfwWindowShouldClose(Init::windowinfo.window_ptr))
 	{
