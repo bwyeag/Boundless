@@ -52,6 +52,9 @@ class ZlibException : public std::exception {
 };
 }  // namespace zlib
 
+
+namespace Boundless {
+// typedefs and usings
 using Eigen::Matrix3d;
 using Eigen::Matrix3f;
 using Eigen::Matrix4d;
@@ -62,9 +65,6 @@ using Eigen::Vector3d;
 using Eigen::Vector3f;
 using Eigen::Vector4d;
 using Eigen::Vector4f;
-
-namespace Boundless {
-// typedef
 typedef std::int8_t int8;
 typedef std::int16_t int16;
 typedef std::int32_t int32;

@@ -2,8 +2,10 @@
 
 namespace Boundless
 {
-inline Program::Program() {
+inline Program::Program() {}
+inline Program::Program(size_t c) {
     program_id = glCreateProgram();
+    program_shader.reserve(c);
 }
 inline Program::~Program() {
     glDeleteProgram(program_id);
@@ -368,25 +370,7 @@ Renderer::~Renderer() {
     }
 }
 
-const GLuint ads_vertpos_attrib = 4;
-const GLuint ads_vertnormal_attrib = 5;
-const GLuint ads_mvpmatrix_uniform = 0;
-const GLuint ads_modelmatrix_uniform = 1;
-const GLuint ads_normalmatrix_uniform = 2;
-const GLuint ads_vertcolor_uniform = 3;
-const GLuint ads_eyedirection_uniform = 6;
-const GLuint ads_materialindex_uniform = 7;
-const char* ads_vertshader_path = ".\\shader\\classic_shader_vertex.glsl";
-const char* ads_fragshader_path = ".\\shader\\classic_shader_fragment.glsl";
-const GLsizei ads_stride_array[1]{24};
-
-Program shader;
-GLuint uniform_buffer;
-
-LightProp lightdata[NUM_MAX_LIGHTS];
-MaterialProp materialdata[NUM_MAX_MATERIALS];
-
-void MeshFunctions::InitMeshADS(Mesh& mesh) {
+void ADSBase::InitMeshADS(Mesh& mesh) {
     mesh.InitMesh(ads_stride_array);
     glEnableVertexArrayAttrib(mesh.GetVAO(), ads_vertpos_attrib);
     glEnableVertexArrayAttrib(mesh.GetVAO(), ads_vertnormal_attrib);
@@ -397,7 +381,7 @@ void MeshFunctions::InitMeshADS(Mesh& mesh) {
     glVertexArrayAttribBinding(mesh.GetVAO(), ads_vertpos_attrib, 0);
     glVertexArrayAttribBinding(mesh.GetVAO(), ads_vertnormal_attrib, 0);
 }
-void ADSBase::Init() {
+void ADSBase::InitADS() {
     glCreateBuffers(1, &uniform_buffer);
     glNamedBufferStorage(uniform_buffer,
                          NUM_MAX_LIGHTS * 16 * 7 + NUM_MAX_MATERIALS * 16 * 4,

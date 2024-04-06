@@ -173,40 +173,6 @@ class Texture {
     static void GenTextureFile(const std::string& path);
     static void GenTextureFile(const char* path);
 };
-
-class Program {
-   public:
-    struct ShaderInfo {
-        GLenum type;
-        GLuint id;
-    };
-
-   private:
-    GLuint program_id;
-    std::vector<ShaderInfo> program_shader;
-    void PrintLog() const;
-
-   public:
-    Program();
-    Program(const Program& target) = delete;
-    Program(Program&& target) noexcept = default;
-    Program& operator=(const Program& target) = delete;
-    Program& operator=(Program&& target) noexcept = default;
-    ShaderInfo& operator[](size_t index);
-    ~Program();
-
-    void AddShader(std::string_view path, GLenum type);
-    void AddShaderByCode(std::string_view data, GLenum type);
-    void Link() const;
-    inline GLuint GetID() { return program_id; }
-
-    static void UseProgram(Program& p);
-    static void UnUseProgram();
-
-    static GLuint LoadShader(std::string_view path, GLenum type);
-    static GLuint LoadShader(const char* path, GLenum type);
-    static GLuint ComplieShader(std::string_view code, GLenum type);
-};
 } // namespace Boundless
 
 #endif //!_BOUNDLESS_RESOURCE_HPP_FILE_

@@ -1,8 +1,41 @@
 #ifndef _BOUNDLESS_RENDER_HPP_FILE_
 #define _BOUNDLESS_RENDER_HPP_FILE_
 #include "boundless_base.hpp"
-namespace Boundless
-{
+namespace Boundless {
+class Program {
+   public:
+    struct ShaderInfo {
+        GLenum type;
+        GLuint id;
+    };
+
+   private:
+    GLuint program_id;
+    std::vector<ShaderInfo> program_shader;
+    void PrintLog() const;
+
+   public:
+    Program();
+    Program(size_t c);
+    Program(const Program& target) = delete;
+    Program(Program&& target) noexcept = default;
+    Program& operator=(const Program& target) = delete;
+    Program& operator=(Program&& target) noexcept = default;
+    ShaderInfo& operator[](size_t index);
+    ~Program();
+
+    void AddShader(std::string_view path, GLenum type);
+    void AddShaderByCode(std::string_view data, GLenum type);
+    void Link() const;
+    inline GLuint GetID() { return program_id; }
+
+    static void UseProgram(Program& p);
+    static void UnUseProgram();
+
+    static GLuint LoadShader(std::string_view path, GLenum type);
+    static GLuint LoadShader(const char* path, GLenum type);
+    static GLuint ComplieShader(std::string_view code, GLenum type);
+};
 class RenderObject;
 class Transform {
    private:
@@ -32,7 +65,7 @@ class RenderObject {
     virtual void draw(const Matrix4f& mvp_matrix,
                       const Matrix4f& model_matrix,
                       const Matrix4f& normal_matrix,
-                      const Vector3f& eye_dir) {}
+                      const Vector3f& eye_dir) = 0;
     virtual ~RenderObject() {}
 };
 
@@ -83,6 +116,7 @@ class Renderer {
     Transform* AddObject(const Vector3d& vp,
                          const Vector3d& vs,
                          const Quaterniond& qr,
+                         T** retobj,
                          arguments&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
@@ -108,6 +142,7 @@ class Renderer {
         tfo->rotate = qr;
         tfo->render_obj = rdo;
         new ((T*)rdo) T(std::forward<arguments>(args)...);
+        *retobj = (T*)rdo;
         return tfo;
     }
     template <typename T, typename... arguments>
@@ -115,6 +150,7 @@ class Renderer {
                               const Vector3d& vp,
                               const Vector3d& vs,
                               const Quaterniond& qr,
+                              T** retobj,
                               arguments&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
@@ -135,6 +171,7 @@ class Renderer {
         tfo->rotate = qr;
         tfo->render_obj = rdo;
         new ((T*)rdo) T(std::forward<arguments>(args)...);
+        *retobj = (T*)rdo;
         return tfo;
     }
     template <typename T, typename... arguments>
@@ -142,6 +179,7 @@ class Renderer {
                               const Vector3d& vp,
                               const Vector3d& vs,
                               const Quaterniond& qr,
+                              T** retobj,
                               arguments&&... args) {
         static_assert(std::is_base_of<RenderObject, T>::value,
                       "Type must be derived from RenderObject.");
@@ -162,27 +200,27 @@ class Renderer {
         tfo->rotate = qr;
         tfo->render_obj = rdo;
         new ((T*)rdo) T(std::forward<arguments>(args)...);
+        *retobj = (T*)rdo;
         return tfo;
     }
     void DrawAll();
     ~Renderer();
 };
 
-extern const GLuint ads_vertpos_attrib;
-extern const GLuint ads_vertnormal_attrib;
-extern const GLuint ads_mvpmatrix_uniform;
-extern const GLuint ads_modelmatrix_uniform;
-extern const GLuint ads_normalmatrix_uniform;
-extern const GLuint ads_vertcolor_uniform;
-extern const GLuint ads_eyedirection_uniform;
-extern const GLuint ads_materialindex_uniform;
-extern const char* ads_vertshader_path;
-extern const char* ads_fragshader_path;
-extern const GLsizei ads_stride_array[];
-class MeshFunctions {
-   public:
-    void InitMeshADS(Mesh& mesh);
-};
+const GLuint ads_vertpos_attrib = 4;
+const GLuint ads_vertnormal_attrib = 5;
+const GLuint ads_mvpmatrix_uniform = 0;
+const GLuint ads_modelmatrix_uniform = 1;
+const GLuint ads_normalmatrix_uniform = 2;
+const GLuint ads_vertcolor_uniform = 3;
+const GLuint ads_eyedirection_uniform = 6;
+const GLuint ads_materialindex_uniform = 7;
+const char* ads_vertshader_path = ".\\shader\\classic_shader_vertex.glsl";
+const char* ads_fragshader_path = ".\\shader\\classic_shader_fragment.glsl";
+const GLsizei ads_stride_array[1]{24};
+#define NUM_MAX_LIGHTS 2
+#define NUM_MAX_MATERIALS 1
+
 struct LightProp {
     Vector3f ambient;
     Vector3f color;     // 颜色
@@ -207,22 +245,22 @@ struct MaterialProp {
     Vector3f specular;
     float shininess;
 };
-#define NUM_MAX_LIGHTS 2
-#define NUM_MAX_MATERIALS 1
-extern Program shader;
-extern GLuint uniform_buffer;
-
-extern LightProp lightdata[];
-extern MaterialProp materialdata[];
 
 class ADSBase {
    public:
-    static void Init();
+    static Program shader;
+    static GLuint uniform_buffer;
+
+    static LightProp lightdata[NUM_MAX_LIGHTS];
+    static MaterialProp materialdata[NUM_MAX_MATERIALS];
+
+    static void InitMeshADS(Mesh& mesh);
+    static void InitADS();
     static void UpdateUniformBuffer();
 };
 
 static const GLsizei starr[]{24};
-class ADSRender : public RenderObject {
+class ADSRender : public RenderObject, public ADSBase {
    public:
     struct ADSData {
         uint32 materialindex;
@@ -235,6 +273,6 @@ class ADSRender : public RenderObject {
               const Vector3f& eye_dir);
     ~ADSRender();
 };
-} // namespace Boundless
+}  // namespace Boundless
 
-#endif //!_BOUNDLESS_RENDER_HPP_FILE_
+#endif  //!_BOUNDLESS_RENDER_HPP_FILE_
