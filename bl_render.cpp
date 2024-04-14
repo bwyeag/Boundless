@@ -1,11 +1,25 @@
 #include "bl_render.hpp"
 
-namespace Boundless
-{
+namespace Boundless {
 inline Program::Program() {}
 inline Program::Program(size_t c) {
     program_id = glCreateProgram();
     program_shader.reserve(c);
+}
+inline void Program::Init(size_t c) {
+    program_id = glCreateProgram();
+    program_shader.reserve(c);
+}
+void Program::Init(std::initializer_list<ShaderInit> list) {
+    program_id = glCreateProgram();
+    program_shader.reserve(list.size());
+    GLuint shader_id;
+    for (auto it = list.begin();it != list.end();++it) {
+        shader_id = LoadShader(it->path, it->type);
+        glAttachShader(program_id, shader_id);
+        program_shader.push_back({it->type, shader_id});
+    }
+    Link();
 }
 inline Program::~Program() {
     glDeleteProgram(program_id);
@@ -30,12 +44,12 @@ void Program::PrintLog() const {
         }
     }
 }
-void Program::AddShader(std::string_view path, GLenum type) {
+void Program::AddShader(const char* path, GLenum type) {
     GLuint shader_id = Program::LoadShader(path, type);
     glAttachShader(program_id, shader_id);
     program_shader.push_back({type, shader_id});
 }
-void Program::AddShaderByCode(std::string_view data, GLenum type) {
+void Program::AddShaderByCode(const char* data, GLenum type) {
     GLuint shader_id = Program::ComplieShader(data, type);
     glAttachShader(program_id, shader_id);
     program_shader.push_back({type, shader_id});
@@ -52,8 +66,8 @@ inline void Program::UnUseProgram() {
     glUseProgram(0);
 }
 
-GLuint Program::LoadShader(std::string_view path, GLenum type) {
-    std::ifstream reader(std::string(path), std::ios::in);
+GLuint Program::LoadShader(const char* path, GLenum type) {
+    std::ifstream reader(path, std::ios::in);
     if (!reader.is_open()) {
         throw std::runtime_error("Cannot open file.");
     }
@@ -86,15 +100,11 @@ GLuint Program::LoadShader(std::string_view path, GLenum type) {
     }
     return shader_id;
 }
-inline GLuint Program::LoadShader(const char* path, GLenum type) {
-    return LoadShader(std::string_view(path), type);
-}
-GLuint Program::ComplieShader(std::string_view code, GLenum type) {
+GLuint Program::ComplieShader(const char* code, GLenum type) {
     GLuint shader_id = glCreateShader(type);
     GLint success;
-    const char* res = code.begin();
-    const GLint length = static_cast<GLint>(code.size());
-    glShaderSource(shader_id, 1, &res, &length);
+    const GLint length = static_cast<GLint>(strlen(code));
+    glShaderSource(shader_id, 1, &code, &length);
     glCompileShader(shader_id);
     glGetShaderiv(shader_id, GL_COMPILE_STATUS, &success);
     if (success == GL_FALSE) {
@@ -117,7 +127,7 @@ GLuint Program::ComplieShader(std::string_view code, GLenum type) {
     return shader_id;
 }
 
-const Matrix4f& Transform::get_model() {
+const Matrix4f& Transform::model() {
     if (edited) {
         model = Matrix4f::Zero();
         model(0, 0) = static_cast<float>(scale.x());
@@ -146,15 +156,15 @@ const Matrix4f& Transform::get_model() {
     }
     return model;
 }
-inline void RenderObject::enable() {
+inline void RenderObject::Enable() {
     base_transform->roenble = true;
 }
-inline void RenderObject::disable() {
+inline void RenderObject::Disable() {
     base_transform->roenble = false;
 }
 
 inline Camera::Camera() : editedProj(true), editedView(true) {}
-const Matrix4f& Camera::get_proj() {
+const Matrix4f& Camera::proj() {
     if (editedProj) {
         editedProj = false;
         if (isFrustum) {
@@ -174,7 +184,7 @@ const Matrix4f& Camera::get_proj() {
     }
     return projection;
 }
-const Matrix4f& Camera::get_view() {
+const Matrix4f& Camera::view() {
     if (editedView) {
         editedView = false;
         forword.normalize();
@@ -192,7 +202,7 @@ const Matrix4f& Camera::get_view() {
     }
     return view;
 }
-const Matrix4f& Camera::get_viewproj_matrix() {
+const Matrix4f& Camera::viewproj() {
     bool mult = false;
     if (editedProj) {
         editedProj = false;
@@ -370,7 +380,7 @@ Renderer::~Renderer() {
     }
 }
 
-void ADSBase::InitMeshADS(Mesh& mesh) {
+void ADSBase::InitMeshADS(Mesh& mesh) { //todo: 修改参数位置为标准顺序
     mesh.InitMesh(ads_stride_array);
     glEnableVertexArrayAttrib(mesh.GetVAO(), ads_vertpos_attrib);
     glEnableVertexArrayAttrib(mesh.GetVAO(), ads_vertnormal_attrib);
@@ -387,9 +397,10 @@ void ADSBase::InitADS() {
                          NUM_MAX_LIGHTS * 16 * 7 + NUM_MAX_MATERIALS * 16 * 4,
                          nullptr, GL_DYNAMIC_STORAGE_BIT);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, uniform_buffer);
-    shader.AddShader(ads_vertshader_path, GL_VERTEX_SHADER);
-    shader.AddShader(ads_fragshader_path, GL_FRAGMENT_SHADER);
-    shader.Link();
+    shader.Init({
+        {ads_vertshader_path, GL_VERTEX_SHADER},
+        {ads_fragshader_path, GL_FRAGMENT_SHADER}
+    });
 }
 void ADSBase::UpdateUniformBuffer() {
     for (size_t i = 0; i < NUM_MAX_LIGHTS; i++) {
@@ -474,4 +485,4 @@ void ADSRender::draw(const Matrix4f& mvp_matrix,
     }
 }
 ADSRender::~ADSRender() {}
-} // namespace Boundless
+}  // namespace Boundless

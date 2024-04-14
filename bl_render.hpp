@@ -1,22 +1,29 @@
 #ifndef _BOUNDLESS_RENDER_HPP_FILE_
 #define _BOUNDLESS_RENDER_HPP_FILE_
+#include <initializer_list>
+#include "bl_resource.hpp"
 #include "boundless_base.hpp"
 namespace Boundless {
 class Program {
-   public:
-    struct ShaderInfo {
-        GLenum type;
-        GLuint id;
-    };
-
-   private:
     GLuint program_id;
     std::vector<ShaderInfo> program_shader;
     void PrintLog() const;
 
    public:
+    struct ShaderInfo {
+        GLenum type;
+        GLuint id;
+    };
+    struct ShaderInit {
+        const char* path;
+        GLenum type;
+    };
+
+   public:
     Program();
     Program(size_t c);
+    void Init(size_t c);
+    void Init(std::initializer_list<ShaderInit>);
     Program(const Program& target) = delete;
     Program(Program&& target) noexcept = default;
     Program& operator=(const Program& target) = delete;
@@ -24,22 +31,19 @@ class Program {
     ShaderInfo& operator[](size_t index);
     ~Program();
 
-    void AddShader(std::string_view path, GLenum type);
-    void AddShaderByCode(std::string_view data, GLenum type);
+    void AddShader(const char* path, GLenum type);
+    void AddShaderByCode(const char* data, GLenum type);
     void Link() const;
     inline GLuint GetID() { return program_id; }
 
     static void UseProgram(Program& p);
     static void UnUseProgram();
 
-    static GLuint LoadShader(std::string_view path, GLenum type);
     static GLuint LoadShader(const char* path, GLenum type);
-    static GLuint ComplieShader(std::string_view code, GLenum type);
+    static GLuint ComplieShader(const char* code, GLenum type);
 };
-class RenderObject;
 class Transform {
-   private:
-    friend class Renderer;
+    friend class RenderObject;
     Transform *parent, *next_brother, *child_head;
 
    public:
@@ -50,27 +54,29 @@ class Transform {
     Matrix4f model;
     bool edited, roenble, enable;
 
-    const Matrix4f& get_model();
+    const Matrix4f& model();
 };
 
 class RenderObject {
+    friend class Transform;
    public:
     Transform* base_transform;
     void* data_ptr;
     Mesh mesh;
 
     RenderObject() {}
-    void enable();
-    void disable();
+    void Enable();
+    void Disable();
     virtual void draw(const Matrix4f& mvp_matrix,
                       const Matrix4f& model_matrix,
                       const Matrix4f& normal_matrix,
-                      const Vector3f& eye_dir) = 0;
+                      const Vector3f& eye_dir) {
+        assert(false, "WARNING:base RenderObject draw() called.");
+    };
     virtual ~RenderObject() {}
 };
 
 class Camera {
-   private:
     Matrix4f projection;
     Matrix4f view;
     Matrix4f vp_matrix;
@@ -84,13 +90,12 @@ class Camera {
     Vector3d position, forword, up;
 
     Camera();
-    const Matrix4f& get_proj();
-    const Matrix4f& get_view();
-    const Matrix4f& get_viewproj_matrix();
+    const Matrix4f& proj();
+    const Matrix4f& view();
+    const Matrix4f& viewproj();
 };
 
 class Renderer {
-   private:
     object_pool<Transform, 64> tr_pool;
     object_pool<RenderObject, 64> ro_pool;
     Transform* transform_head;

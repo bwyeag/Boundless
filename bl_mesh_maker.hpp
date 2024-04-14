@@ -8,11 +8,11 @@ class MeshMaker {
    public:
     // Make~()方法 按要求生成模型
     static void MakeCube(Mesh& mesh, float size, VertexData df);
-    // static void MakePlane(Mesh& mesh,
-    //                       float size,
-    //                       int xdiv,
-    //                       int ydiv,
-    //                       VertexData df);
+    static void MakePlane(Mesh& mesh,
+                          float size,
+                          int xdiv,
+                          int ydiv,
+                          VertexData df);
     static void MakeSphere(Mesh& mesh,
                            float r,
                            int rdiv,

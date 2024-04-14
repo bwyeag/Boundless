@@ -3,8 +3,7 @@
 
 #include "bl_resource.hpp"
 
-namespace Boundless
-{
+namespace Boundless {
 Mesh::Mesh() {}
 Mesh::Mesh(IndexStatus indexst, size_t bufcnt) {
     glCreateVertexArrays(1, &vertex_array);
@@ -63,13 +62,50 @@ void Mesh::InitMesh(const GLsizei* stride_array, const GLintptr* start_array) {
         }
     }
 }
+void Mesh::InitMesh(const MeshInitArg& args,
+                    std::initializer_list<MeshInit> list) {
+    primitive_type = args.primitive_type;
+    index_status = args.index_status;
+    restart_index = args.restart_index;
+    index_type = args.index_type;
+    mesh_count = args.mesh_count;
+    glCreateVertexArrays(1, &vertex_array);
+    auto it = list.begin();
+    size_t count = list.size();
+    if (it != list.end()) {
+        glCreateBuffers(1, &vertex_buffer);
+        glNamedBufferStorage(vertex_buffer, it->length, it->data, it->flags);
+        glVertexArrayVertexBuffer(vertex_array, 0, vertex_buffer, it->start,
+                                  it->stride);
+        count--;
+    }
+    ++it;
+    if (it != list.end() && index_status != IndexStatus::NO_INDEX) {
+        glCreateBuffers(1, &index_buffer);
+        glNamedBufferStorage(index_buffer, it->length, it->data, it->flags);
+        glVertexArrayVertexBuffer(vertex_array, 0, index_buffer, it->start,
+                                  it->stride);
+        count--;
+    }
+    if (count == 0)
+        return;
+
+    buffers.resize(count);
+    glCreateBuffers(count, &buffers[0]);
+    count = 0;
+    for (; it != list.end(); ++it, ++count) {
+        glNamedBufferStorage(buffers[count], it->length, it->data, it->flags);
+        glVertexArrayVertexBuffer(vertex_array, 0, buffers[count], it->start,
+                                  it->stride);
+    }
+}
 inline const std::vector<GLuint>& Mesh::getBuffer() {
     return buffers;
 }
 inline void Mesh::setPrimitiveType(GLenum type) {
     primitive_type = type;
 }
-inline void Mesh::setRestartIndex(GLuint index) {
+inline void Mesh::getRestartIndex(GLuint index) {
     restart_index = index;
 }
 inline GLuint Mesh::setRestartIndex() {
@@ -136,8 +172,9 @@ void Mesh::LoadMesh(std::ifstream& in, Mesh& mesh) {
     in.read((char*)&length, sizeof(uint64));
     in.seekg(cur);
     Byte* data = (Byte*)malloc(length);
-    if (data == nullptr)
-        {throw std::bad_alloc();}
+    if (data == nullptr) {
+        throw std::bad_alloc();
+    }
     in.read((char*)data, length);
     LoadMesh(data, mesh);
     free(data);
@@ -162,7 +199,7 @@ void Mesh::LoadMeshMultple(const std::string& path, std::vector<Mesh>& meshs) {
     LoadMeshMultple(path.c_str(), meshs);
 }
 void Mesh::LoadMeshMultple(const char* path, std::vector<Mesh>& meshs) {
-   std::ifstream fin(path, std::ios_base::in | std::ios_base::binary);
+    std::ifstream fin(path, std::ios_base::in | std::ios_base::binary);
     if (!fin.is_open()) {
         throw std::runtime_error("Cannot open file:" + path);
     }
@@ -172,9 +209,9 @@ void Mesh::LoadMeshMultple(const char* path, std::vector<Mesh>& meshs) {
         throw std::runtime_error("Mesh head code error.");
     }
     uint32 mesh_count;
-    fin.read((char*)&mesh_count, sizeof(uint32));// 读取mesh数
+    fin.read((char*)&mesh_count, sizeof(uint32));  // 读取mesh数
     meshs.resize(mesh_count);
-    for (Mesh& m : meshs) { // 遍历每一个Mesh
+    for (Mesh& m : meshs) {  // 遍历每一个Mesh
         LoadMesh(fin, m);
     }
     fin.close();
@@ -183,15 +220,17 @@ Byte* Mesh::PackMesh(size_t* ret_length, const Mesh& mesh) {
     size_t full_size =
         sizeof(MeshFile) + sizeof(DataRange) * mesh.buffers.size();
     GLint64 length;
-    glGetNamedBufferParameteri64v(mesh.vertex_buffer, GL_BUFFER_SIZE, &length);// 获取VBO长度
+    glGetNamedBufferParameteri64v(mesh.vertex_buffer, GL_BUFFER_SIZE,
+                                  &length);  // 获取VBO长度
     full_size += static_cast<size_t>(length);
     if (mesh.index_status != IndexStatus::NO_INDEX) {
         glGetNamedBufferParameteri64v(mesh.index_buffer, GL_BUFFER_SIZE,
-                                      &length);// 获取IBO长度
+                                      &length);  // 获取IBO长度
         full_size += static_cast<size_t>(length);
     }
     for (size_t i = 0; i < mesh.buffers.size(); i++) {
-        glGetNamedBufferParameteri64v(mesh.buffers[i], GL_BUFFER_SIZE, &length);// 获取每个Buffer长度
+        glGetNamedBufferParameteri64v(mesh.buffers[i], GL_BUFFER_SIZE,
+                                      &length);  // 获取每个Buffer长度
         full_size += static_cast<size_t>(length);
     }
     Byte *data = (Byte*)malloc(full_size), *cur = data;
@@ -869,4 +908,4 @@ inline void Texture::GenTextureFile(const std::string& path) {
 void Texture::GenTextureFile(const char* path) {
     GenTextureFile(std::string(path));
 }
-} // namespace Boundless
+}  // namespace Boundless

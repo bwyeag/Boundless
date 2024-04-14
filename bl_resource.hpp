@@ -1,5 +1,6 @@
 #ifndef _BOUNDLESS_RESOURCE_HPP_FILE_
 #define _BOUNDLESS_RESOURCE_HPP_FILE_
+#include <initializer_list>
 #include "boundless_base.hpp"
 namespace Boundless {
 ///////////////////////////////////////////////
@@ -48,9 +49,23 @@ class Mesh {
     GLenum index_type;
     GLsizei mesh_count;
 
-   public:
     friend class MeshMaker;
-    Mesh();                                    // 不做任何事
+
+   public:
+    struct MeshInit {
+        GLsizeiptr length;
+        GLenum flags;
+        GLintptr start;
+        GLsizei stride;
+        void* data;
+    };
+    struct MeshInitArg {
+        GLenum primitive_type;
+        IndexStatus index_status;
+        GLuint restart_index;
+        GLenum index_type;
+        GLsizei mesh_count;
+    } Mesh();                                  // 不做任何事
     Mesh(IndexStatus indexst, size_t bufcnt);  // 按index状态和buffer数初始化
     Mesh(Mesh&&) noexcept = default;
     Mesh(const Mesh&) = delete;
@@ -60,7 +75,8 @@ class Mesh {
     void InitIndexStatus(IndexStatus indexst);  // 初始化到指定的IndexStatus
     void InitMesh(const GLsizei* stride_array,
                   const GLintptr* start_array = nullptr);
-
+    void InitMesh(const MeshInitArg& args,
+                  std::initializer_list<MeshInit> list);
     // 获取数据方法
     const std::vector<GLuint>& getBuffer();
     void setPrimitiveType(GLenum type);
